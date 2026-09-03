@@ -70,7 +70,7 @@ export function StatCard({
             </span>
           ) : null}
           {footerPill ? (
-            <Pill tone={footerPillTone} className="ml-auto">
+            <Pill tone={footerPillTone} className={footer ? "ml-auto" : ""}>
               {footerPill}
             </Pill>
           ) : null}

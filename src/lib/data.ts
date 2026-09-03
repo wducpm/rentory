@@ -77,6 +77,7 @@ function decorate(
 export type RoomSummary = {
   room: RoomRow;
   contract: ContractRow | null;
+  invoiceCount: number;
   dueCount: number;
   dueAmount: number;
 };
@@ -112,13 +113,13 @@ export async function listRooms(): Promise<{
   );
 
   const rooms = (roomsRes.data ?? []).map((room) => {
-    const due = decorated.filter(
-      (i) => i.room_id === room.id && i.status === "due",
-    );
+    const mine = decorated.filter((i) => i.room_id === room.id);
+    const due = mine.filter((i) => i.status === "due");
     return {
       room,
       contract:
         (contractsRes.data ?? []).find((c) => c.room_id === room.id) ?? null,
+      invoiceCount: mine.length,
       dueCount: due.length,
       dueAmount: due.reduce((s, i) => s + (i.total - i.paid), 0),
     };

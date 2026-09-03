@@ -75,7 +75,7 @@ export default async function RoomsPage({
           />
         ) : (
           <ul className="grid gap-2 md:grid-cols-2">
-            {rooms.map(({ room, contract, dueCount, dueAmount }) => (
+            {rooms.map(({ room, contract, invoiceCount, dueCount, dueAmount }) => (
               <li key={room.id}>
                 <Link
                   href={`/rooms/${room.id}`}
@@ -115,9 +115,9 @@ export default async function RoomsPage({
                           className="text-warning text-xs font-semibold"
                         />
                       </>
-                    ) : (
+                    ) : invoiceCount > 0 ? (
                       <Pill tone="success">Đã thu đủ</Pill>
-                    )}
+                    ) : null}
                     <ChevronRight
                       className="text-muted-foreground size-4"
                       aria-hidden

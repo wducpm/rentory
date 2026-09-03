@@ -92,14 +92,15 @@ export default async function HomePage() {
 
         {/* Chỉ số tổng quan — không có doanh thu / lãi lỗ (ngoài phạm vi) */}
         <section className="grid grid-cols-2 gap-3">
+          {/* Footer chỉ mang thông tin mà con số lớn chưa nói — không lặp lại nó */}
           <StatCard
             label="Lấp đầy"
             value={occupiedRooms}
             denominator={`/ ${totalRooms} phòng`}
             percent={occupancy}
             tone="success"
-            footer={`${occupiedRooms} đang thuê`}
-            footerPill={vacantRooms > 0 ? `${vacantRooms} trống` : undefined}
+            footerPill={vacantRooms > 0 ? `${vacantRooms} trống` : "Kín phòng"}
+            footerPillTone={vacantRooms > 0 ? "neutral" : "success"}
           />
           <StatCard
             label={`Thu tiền T${month}`}
@@ -107,11 +108,12 @@ export default async function HomePage() {
             denominator={`/ ${periodInvoices} đã thu`}
             percent={collected}
             tone="primary"
-            footer={`${periodPaid} hoàn tất`}
             footerPill={
-              dueInvoices.length > 0 ? `Còn ${dueInvoices.length} HĐ` : undefined
+              dueInvoices.length > 0
+                ? `Còn ${dueInvoices.length} HĐ`
+                : "Đã thu đủ"
             }
-            footerPillTone="warning"
+            footerPillTone={dueInvoices.length > 0 ? "warning" : "success"}
           />
         </section>
 
