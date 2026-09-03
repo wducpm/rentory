@@ -1,7 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { BUILDING_SLUG_HEADER } from "@/lib/tenant";
-import { DEFAULT_BUILDING_SLUG } from "@/lib/env";
+import { BUILDING_SLUG_HEADER, DEFAULT_BUILDING_SLUG } from "@/lib/tenant";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 

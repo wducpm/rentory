@@ -1,7 +1,12 @@
-import { DEFAULT_BUILDING_SLUG } from "@/lib/env";
-
 /** Header do middleware gắn vào request để Server Component đọc lại. */
 export const BUILDING_SLUG_HEADER = "x-building-slug";
+
+/**
+ * Fallback khi host không có subdomain hợp lệ (localhost, `*.vercel.app`).
+ * Thiếu biến này thì local dev và Preview sẽ chết.
+ */
+export const DEFAULT_BUILDING_SLUG =
+  process.env.DEFAULT_BUILDING_SLUG ?? "190nguyentrai";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]);
 
@@ -9,9 +14,8 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]);
  * 2.5 — tách slug tòa nhà từ `host`.
  *
  * Một codebase, một deployment, nhiều tòa: `190nguyentrai.ducpm.work` →
- * '190nguyentrai'. Host không có subdomain hợp lệ (localhost, *.vercel.app,
- * apex domain) → rơi về DEFAULT_BUILDING_SLUG, nếu không local dev và Preview
- * sẽ chết.
+ * '190nguyentrai'. Host không có subdomain hợp lệ → rơi về
+ * DEFAULT_BUILDING_SLUG.
  */
 export function buildingSlugFromHost(host: string | null): string {
   if (!host) return DEFAULT_BUILDING_SLUG;
