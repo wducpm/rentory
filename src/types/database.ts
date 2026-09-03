@@ -434,10 +434,131 @@ export type Database = {
       }
     }
     Functions: {
+      apply_meter_mark: {
+        Args: {
+          p_effective_date: string
+          p_elec: number
+          p_invoice_id?: string
+          p_note?: string
+          p_room_id: string
+          p_source: Database["public"]["Enums"]["mark_source"]
+          p_water: number
+        }
+        Returns: undefined
+      }
       building_of_invoice: { Args: { i: string }; Returns: string }
       building_of_receipt: { Args: { rc: string }; Returns: string }
       building_of_room: { Args: { r: string }; Returns: string }
+      create_periodic_invoice: {
+        Args: {
+          p_code: string
+          p_contract_id: string
+          p_elec_end: number
+          p_elec_start: number
+          p_issue_date: string
+          p_items: Json
+          p_note?: string
+          p_room_id: string
+          p_service_period: string
+          p_utility_period: string
+          p_water_end: number
+          p_water_start: number
+        }
+        Returns: string
+      }
+      create_receipt: {
+        Args: { p_invoice_id: string; p_items: Json; p_receipt_date: string }
+        Returns: string
+      }
+      insert_invoice_with_mark: {
+        Args: {
+          p_code: string
+          p_contract_id: string
+          p_elec_end: number
+          p_elec_start: number
+          p_issue_date: string
+          p_items: Json
+          p_note?: string
+          p_room_id: string
+          p_service_period: string
+          p_type: Database["public"]["Enums"]["invoice_type"]
+          p_utility_period: string
+          p_water_end: number
+          p_water_start: number
+        }
+        Returns: string
+      }
       is_my_building: { Args: { b: string }; Returns: boolean }
+      move_in: {
+        Args: {
+          p_code: string
+          p_deposit: number
+          p_elec: number
+          p_items: Json
+          p_note?: string
+          p_occupants: number
+          p_phone: string
+          p_rent: number
+          p_room_id: string
+          p_service_period: string
+          p_start_date: string
+          p_tenant_name: string
+          p_water: number
+        }
+        Returns: string
+      }
+      move_out: {
+        Args: {
+          p_code: string
+          p_contract_id: string
+          p_elec_end: number
+          p_elec_start: number
+          p_issue_date: string
+          p_items: Json
+          p_note?: string
+          p_utility_period: string
+          p_water_end: number
+          p_water_start: number
+        }
+        Returns: string
+      }
+      replace_invoice_items: {
+        Args: { p_invoice_id: string; p_items: Json }
+        Returns: undefined
+      }
+      set_meter_mark: {
+        Args: {
+          p_effective_date: string
+          p_elec: number
+          p_note?: string
+          p_room_id: string
+          p_water: number
+        }
+        Returns: undefined
+      }
+      update_invoice: {
+        Args: {
+          p_elec_end?: number
+          p_elec_start?: number
+          p_invoice_id: string
+          p_issue_date: string
+          p_items?: Json
+          p_note?: string
+          p_service_period?: string
+          p_utility_period?: string
+          p_water_end?: number
+          p_water_start?: number
+        }
+        Returns: boolean
+      }
+      update_receipt_item: {
+        Args: {
+          p_amount: number
+          p_fee: Database["public"]["Enums"]["fee_type"]
+          p_receipt_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       fee_type:

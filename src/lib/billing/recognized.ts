@@ -57,3 +57,44 @@ export function invoiceStatus(
 ): "paid" | "due" {
   return unpaidFees(items, receipts).length === 0 ? "paid" : "due";
 }
+
+/**
+ * View `recognized_items` trong DB đã làm sẵn phần "bản ghi mới nhất" của
+ * TT-03, nên UI đọc thẳng từ đó thay vì kéo toàn bộ phiếu thu về.
+ */
+export type RecognizedRow = { fee: FeeType; amount: number };
+
+export function recognizedFromRows(
+  rows: RecognizedRow[],
+  fee: FeeType,
+): number | null {
+  const row = rows.find((r) => r.fee === fee);
+  return row ? row.amount : null;
+}
+
+export function paidTotalFromRows(
+  items: InvoiceItem[],
+  rows: RecognizedRow[],
+): number {
+  return items.reduce(
+    (sum, item) => sum + (recognizedFromRows(rows, item.fee) ?? 0),
+    0,
+  );
+}
+
+export function unpaidFeesFromRows(
+  items: InvoiceItem[],
+  rows: RecognizedRow[],
+): FeeType[] {
+  return items
+    .filter((i) => i.amount !== 0)
+    .filter((i) => recognizedFromRows(rows, i.fee) === null)
+    .map((i) => i.fee);
+}
+
+export function invoiceStatusFromRows(
+  items: InvoiceItem[],
+  rows: RecognizedRow[],
+): "paid" | "due" {
+  return unpaidFeesFromRows(items, rows).length === 0 ? "paid" : "due";
+}

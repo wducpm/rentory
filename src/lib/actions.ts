@@ -1,0 +1,443 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import { currentBuilding } from "@/lib/building";
+import { existingInvoiceCodes } from "@/lib/data";
+import { buildInvoiceCode, nextCodeSeq, type InvoiceType } from "@/lib/billing";
+
+export type ActionResult<T = void> =
+  | { ok: true; data: T }
+  | { ok: false; error: string };
+
+function fail(error: string): ActionResult<never> {
+  return { ok: false, error };
+}
+
+const itemSchema = z.object({
+  fee: z.enum([
+    "rent",
+    "elec",
+    "water",
+    "internet",
+    "common",
+    "deposit",
+    "deposit_refund",
+  ]),
+  amount: z.number().int(),
+  is_deposit: z.boolean().default(false),
+});
+
+const readingSchema = z.number().min(0);
+
+/** Sinh mã lưu, tự thêm hậu tố khi trùng trong cùng kỳ (4.4). */
+async function makeCode(
+  buildingId: string,
+  roomCode: string,
+  type: InvoiceType,
+  utility: string | null,
+  service: string | null,
+) {
+  const base = buildInvoiceCode(roomCode, type, utility, service);
+  const seq = nextCodeSeq(base, await existingInvoiceCodes(buildingId));
+  return buildInvoiceCode(roomCode, type, utility, service, seq);
+}
+
+async function ctx() {
+  const building = await currentBuilding();
+  if (!building) throw new Error("Không xác định được tòa nhà.");
+  return { building, supabase: await createClient() };
+}
+
+// ── S-10 · cài đặt tòa ────────────────────────────────────────────────────
+const settingsSchema = z.object({
+  elec_price: z.number().int().min(0),
+  water_price: z.number().int().min(0),
+  internet_fee: z.number().int().min(0),
+  common_fee: z.number().int().min(0),
+});
+
+export async function saveSettings(
+  input: z.input<typeof settingsSchema>,
+): Promise<ActionResult> {
+  const parsed = settingsSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+
+  const { building, supabase } = await ctx();
+  const { error } = await supabase
+    .from("building_settings")
+    .upsert({ building_id: building.id, ...parsed.data });
+
+  if (error) return fail(error.message);
+  revalidatePath("/settings");
+  return { ok: true, data: undefined };
+}
+
+// ── S-10 · quản lý phòng ──────────────────────────────────────────────────
+const roomSchema = z.object({
+  code: z.string().trim().min(1, "Chưa nhập số phòng"),
+  floor: z.number().int().nullable(),
+  base_rent: z.number().int().min(0),
+});
+
+export async function createRoom(
+  input: z.input<typeof roomSchema>,
+): Promise<ActionResult> {
+  const parsed = roomSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+
+  const { building, supabase } = await ctx();
+  const { error } = await supabase
+    .from("rooms")
+    .insert({ building_id: building.id, ...parsed.data });
+
+  if (error)
+    return fail(
+      error.code === "23505"
+        ? `Phòng ${parsed.data.code} đã tồn tại.`
+        : error.message,
+    );
+
+  revalidatePath("/settings");
+  revalidatePath("/rooms");
+  return { ok: true, data: undefined };
+}
+
+export async function updateRoom(
+  roomId: string,
+  input: z.input<typeof roomSchema>,
+): Promise<ActionResult> {
+  const parsed = roomSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+
+  const { supabase } = await ctx();
+  const { error } = await supabase
+    .from("rooms")
+    .update(parsed.data)
+    .eq("id", roomId);
+
+  if (error) return fail(error.message);
+  revalidatePath("/settings");
+  revalidatePath("/rooms");
+  revalidatePath(`/rooms/${roomId}`);
+  return { ok: true, data: undefined };
+}
+
+export async function archiveRoom(
+  roomId: string,
+  archived: boolean,
+): Promise<ActionResult> {
+  const { supabase } = await ctx();
+  const { error } = await supabase
+    .from("rooms")
+    .update({ archived })
+    .eq("id", roomId);
+
+  if (error) return fail(error.message);
+  revalidatePath("/settings");
+  revalidatePath("/rooms");
+  return { ok: true, data: undefined };
+}
+
+// ── HD-11 · sửa mốc thủ công ──────────────────────────────────────────────
+const markSchema = z.object({
+  room_id: z.string().uuid(),
+  elec: readingSchema,
+  water: readingSchema,
+  effective_date: z.string(),
+  note: z.string().trim().min(1, "Ghi rõ lý do sửa mốc (VD: thay công tơ)"),
+});
+
+export async function setMeterMark(
+  input: z.input<typeof markSchema>,
+): Promise<ActionResult> {
+  const parsed = markSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+
+  const { supabase } = await ctx();
+  const { error } = await supabase.rpc("set_meter_mark", {
+    p_room_id: parsed.data.room_id,
+    p_elec: parsed.data.elec,
+    p_water: parsed.data.water,
+    p_effective_date: parsed.data.effective_date,
+    p_note: parsed.data.note,
+  });
+
+  if (error) return fail(error.message);
+  revalidatePath("/meters");
+  revalidatePath(`/rooms/${parsed.data.room_id}`);
+  return { ok: true, data: undefined };
+}
+
+// ── HD-02 · S-06 chốt kỳ ──────────────────────────────────────────────────
+const periodicSchema = z.object({
+  room_id: z.string().uuid(),
+  contract_id: z.string().uuid(),
+  room_code: z.string(),
+  issue_date: z.string(),
+  utility_period: z.string(),
+  service_period: z.string(),
+  elec_start: readingSchema,
+  elec_end: readingSchema,
+  water_start: readingSchema,
+  water_end: readingSchema,
+  items: z.array(itemSchema),
+  note: z.string().nullable().default(null),
+});
+
+export async function createPeriodicInvoice(
+  input: z.input<typeof periodicSchema>,
+): Promise<ActionResult<string>> {
+  const parsed = periodicSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  const d = parsed.data;
+
+  // HD-09: chặn lưu khi chỉ số cuối < chỉ số đầu
+  if (d.elec_end < d.elec_start || d.water_end < d.water_start)
+    return fail(
+      "Chỉ số cuối nhỏ hơn chỉ số đầu. Nếu thay công tơ, sửa mốc thủ công trước (HD-11).",
+    );
+
+  const { building, supabase } = await ctx();
+  const code = await makeCode(
+    building.id,
+    d.room_code,
+    "periodic",
+    d.utility_period,
+    d.service_period,
+  );
+
+  const { data, error } = await supabase.rpc("create_periodic_invoice", {
+    p_room_id: d.room_id,
+    p_contract_id: d.contract_id,
+    p_code: code,
+    p_issue_date: d.issue_date,
+    p_utility_period: d.utility_period,
+    p_service_period: d.service_period,
+    p_elec_start: d.elec_start,
+    p_elec_end: d.elec_end,
+    p_water_start: d.water_start,
+    p_water_end: d.water_end,
+    p_items: d.items,
+    p_note: d.note ?? undefined,
+  });
+
+  if (error) return fail(error.message);
+  revalidatePath("/");
+  revalidatePath("/rooms");
+  revalidatePath("/meters");
+  revalidatePath(`/rooms/${d.room_id}`);
+  return { ok: true, data: data as string };
+}
+
+// ── HD-01 · S-07 nhận phòng ───────────────────────────────────────────────
+const moveInSchema = z.object({
+  room_id: z.string().uuid(),
+  room_code: z.string(),
+  tenant_name: z.string().trim().min(1, "Chưa nhập tên khách"),
+  phone: z.string().trim().default(""),
+  occupants: z.number().int().min(1),
+  start_date: z.string(),
+  deposit: z.number().int().min(0),
+  rent: z.number().int().min(0),
+  service_period: z.string(),
+  elec: readingSchema,
+  water: readingSchema,
+  items: z.array(itemSchema),
+  note: z.string().nullable().default(null),
+});
+
+export async function moveIn(
+  input: z.input<typeof moveInSchema>,
+): Promise<ActionResult<string>> {
+  const parsed = moveInSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  const d = parsed.data;
+
+  const { building, supabase } = await ctx();
+  const code = await makeCode(
+    building.id,
+    d.room_code,
+    "move_in",
+    null,
+    d.service_period,
+  );
+
+  const { data, error } = await supabase.rpc("move_in", {
+    p_room_id: d.room_id,
+    p_tenant_name: d.tenant_name,
+    p_phone: d.phone,
+    p_occupants: d.occupants,
+    p_start_date: d.start_date,
+    p_deposit: d.deposit,
+    p_rent: d.rent,
+    p_code: code,
+    p_service_period: d.service_period,
+    p_elec: d.elec,
+    p_water: d.water,
+    p_items: d.items,
+    p_note: d.note ?? undefined,
+  });
+
+  if (error)
+    return fail(
+      error.code === "23505"
+        ? "Phòng này đang có hợp đồng hiệu lực."
+        : error.message,
+    );
+
+  revalidatePath("/");
+  revalidatePath("/rooms");
+  revalidatePath(`/rooms/${d.room_id}`);
+  return { ok: true, data: data as string };
+}
+
+// ── HD-03 · S-08 trả phòng ────────────────────────────────────────────────
+const moveOutSchema = z.object({
+  room_id: z.string().uuid(),
+  room_code: z.string(),
+  contract_id: z.string().uuid(),
+  issue_date: z.string(),
+  utility_period: z.string(),
+  elec_start: readingSchema,
+  elec_end: readingSchema,
+  water_start: readingSchema,
+  water_end: readingSchema,
+  items: z.array(itemSchema),
+  note: z.string().nullable().default(null),
+});
+
+export async function moveOut(
+  input: z.input<typeof moveOutSchema>,
+): Promise<ActionResult<string>> {
+  const parsed = moveOutSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  const d = parsed.data;
+
+  if (d.elec_end < d.elec_start || d.water_end < d.water_start)
+    return fail(
+      "Chỉ số cuối nhỏ hơn chỉ số đầu. Nếu thay công tơ, sửa mốc thủ công trước (HD-11).",
+    );
+
+  const { building, supabase } = await ctx();
+  const code = await makeCode(
+    building.id,
+    d.room_code,
+    "move_out",
+    d.utility_period,
+    null,
+  );
+
+  const { data, error } = await supabase.rpc("move_out", {
+    p_contract_id: d.contract_id,
+    p_code: code,
+    p_issue_date: d.issue_date,
+    p_utility_period: d.utility_period,
+    p_elec_start: d.elec_start,
+    p_elec_end: d.elec_end,
+    p_water_start: d.water_start,
+    p_water_end: d.water_end,
+    p_items: d.items,
+    p_note: d.note ?? undefined,
+  });
+
+  if (error) return fail(error.message);
+  revalidatePath("/");
+  revalidatePath("/rooms");
+  revalidatePath(`/rooms/${d.room_id}`);
+  return { ok: true, data: data as string };
+}
+
+// ── HD-06 + HD-08 · sửa hóa đơn ───────────────────────────────────────────
+const updateInvoiceSchema = z.object({
+  invoice_id: z.string().uuid(),
+  issue_date: z.string(),
+  utility_period: z.string().nullable(),
+  service_period: z.string().nullable(),
+  elec_start: readingSchema,
+  elec_end: readingSchema,
+  water_start: readingSchema,
+  water_end: readingSchema,
+  items: z.array(itemSchema),
+  note: z.string().nullable().default(null),
+});
+
+export async function updateInvoice(
+  input: z.input<typeof updateInvoiceSchema>,
+): Promise<ActionResult<{ markMoved: boolean }>> {
+  const parsed = updateInvoiceSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  const d = parsed.data;
+
+  if (d.elec_end < d.elec_start || d.water_end < d.water_start)
+    return fail("Chỉ số cuối nhỏ hơn chỉ số đầu (HD-09).");
+
+  const { supabase } = await ctx();
+  const { data, error } = await supabase.rpc("update_invoice", {
+    p_invoice_id: d.invoice_id,
+    p_issue_date: d.issue_date,
+    p_utility_period: d.utility_period ?? undefined,
+    p_service_period: d.service_period ?? undefined,
+    p_elec_start: d.elec_start,
+    p_elec_end: d.elec_end,
+    p_water_start: d.water_start,
+    p_water_end: d.water_end,
+    p_items: d.items,
+    p_note: d.note ?? undefined,
+  });
+
+  if (error) return fail(error.message);
+  revalidatePath("/");
+  revalidatePath("/rooms");
+  revalidatePath(`/invoices/${d.invoice_id}`);
+  return { ok: true, data: { markMoved: Boolean(data) } };
+}
+
+// ── TT-01 · S-05 thu tiền ─────────────────────────────────────────────────
+const receiptSchema = z.object({
+  invoice_id: z.string().uuid(),
+  receipt_date: z.string(),
+  items: z
+    .array(z.object({ fee: itemSchema.shape.fee, amount: z.number().int() }))
+    .min(1, "Chưa chọn khoản nào để thu"),
+});
+
+export async function createReceipt(
+  input: z.input<typeof receiptSchema>,
+): Promise<ActionResult<string>> {
+  const parsed = receiptSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+
+  const { supabase } = await ctx();
+  const { data, error } = await supabase.rpc("create_receipt", {
+    p_invoice_id: parsed.data.invoice_id,
+    p_receipt_date: parsed.data.receipt_date,
+    p_items: parsed.data.items,
+  });
+
+  if (error) return fail(error.message);
+  revalidatePath("/");
+  revalidatePath("/rooms");
+  revalidatePath(`/invoices/${parsed.data.invoice_id}`);
+  return { ok: true, data: data as string };
+}
+
+// ── TT-04 · sửa số tiền một bản ghi thu (không có hủy phiếu) ──────────────
+export async function updateReceiptItem(
+  receiptId: string,
+  fee: z.infer<typeof itemSchema>["fee"],
+  amount: number,
+  invoiceId: string,
+): Promise<ActionResult> {
+  const { supabase } = await ctx();
+  const { error } = await supabase.rpc("update_receipt_item", {
+    p_receipt_id: receiptId,
+    p_fee: fee,
+    p_amount: Math.round(amount),
+  });
+
+  if (error) return fail(error.message);
+  revalidatePath(`/invoices/${invoiceId}`);
+  return { ok: true, data: undefined };
+}
