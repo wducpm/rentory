@@ -1,0 +1,11 @@
+# Deploy bằng Vercel CLI đọc từ thư mục local — chặn tường minh mọi thứ
+# không cần cho build, nhất là file env.
+.env
+.env.local
+.env*.local
+.git
+node_modules
+.next
+supabase
+*.md
+!README.md
