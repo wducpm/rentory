@@ -12,7 +12,6 @@ import { TextField } from "@/components/forms/text-field";
 import { updateInvoice } from "@/lib/actions";
 import {
   consumption,
-  displayInvoiceCode,
   type FeeType,
   type InvoiceItem,
   type InvoiceType,
@@ -124,15 +123,12 @@ export function InvoiceDetail({
     <div className="space-y-5 pb-32">
       {/* Đầu hóa đơn — HD-13 */}
       <section className="bg-card border-border rounded-2xl border p-4">
+        {/* HD-13: mặt hóa đơn ghi rõ hai kỳ. Mã đã nằm ở tiêu đề màn nên
+            không lặp lại ở đây. */}
         <div className="flex items-start gap-2">
-          <div className="min-w-0">
-            <p className="font-display text-lg font-bold">
-              {displayInvoiceCode(invoice.code)}
-            </p>
-            <p className="text-muted-foreground mt-0.5 text-xs">
-              {periodsLine(invoice.utility_period, invoice.service_period)}
-            </p>
-          </div>
+          <p className="min-w-0 text-sm font-semibold">
+            {periodsLine(invoice.utility_period, invoice.service_period)}
+          </p>
           <Pill
             tone={invoice.status === "paid" ? "success" : "warning"}
             className="ml-auto"

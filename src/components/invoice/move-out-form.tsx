@@ -153,7 +153,7 @@ export function MoveOutForm({
           {" · "}
           {periodsLine(draft.utility_period, null)}
         </p>
-        <ItemsEditor items={effectiveItems} onChange={setItems} idPrefix="mo" />
+        <ItemsEditor items={effectiveItems} onChange={setItems} idPrefix="mo-fee" />
         <p className="text-muted-foreground mt-2 px-1 text-[11px]">
           Dịch vụ mặc định 0 vì đã thu trước ở hóa đơn kỳ liền trước — admin
           quyết có hoàn lại không. Hoàn cọc là dòng âm, không bắt khớp cọc gốc

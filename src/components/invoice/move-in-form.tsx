@@ -195,7 +195,7 @@ export function MoveInForm({
         <ItemsEditor
           items={effectiveItems}
           onChange={setItems}
-          idPrefix="mi"
+          idPrefix="mi-fee"
         />
         <p className="text-muted-foreground mt-2 px-1 text-[11px]">
           Dịch vụ của kỳ hiện tại liệt kê đầy đủ dù khách chỉ ở vài ngày — sửa
