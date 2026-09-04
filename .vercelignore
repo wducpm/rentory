@@ -1,11 +1,14 @@
-# Deploy bằng Vercel CLI đọc từ thư mục local — chặn tường minh mọi thứ
-# không cần cho build, nhất là file env.
-.env
-.env.local
-.env*.local
-.git
-node_modules
-.next
-supabase
-*.md
-!README.md
+# Deploy đọc thẳng từ thư mục local — chặn tường minh thứ không cần cho build.
+#
+# ⚠ Mọi mẫu phải NEO VÀO GỐC bằng dấu "/" đứng đầu. Viết `supabase` trần sẽ
+# khớp cả `src/lib/supabase/` và làm build chết vì thiếu module.
+/.env
+/.env.local
+/.env.production
+/.git
+/node_modules
+/.next
+/supabase
+/HANDOFF-rentory.md
+/DESIGN_SYSTEM.md
+/srs-chi-so-va-lap-hoa-don.md
