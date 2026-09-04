@@ -489,24 +489,45 @@ export type Database = {
         Returns: string
       }
       is_my_building: { Args: { b: string }; Returns: boolean }
-      move_in: {
-        Args: {
-          p_code: string
-          p_deposit: number
-          p_elec: number
-          p_items: Json
-          p_note?: string
-          p_occupants: number
-          p_phone: string
-          p_rent: number
-          p_room_id: string
-          p_service_period: string
-          p_start_date: string
-          p_tenant_name: string
-          p_water: number
-        }
-        Returns: string
-      }
+      move_in:
+        | {
+            Args: {
+              p_code: string
+              p_deposit: number
+              p_elec: number
+              p_items: Json
+              p_note?: string
+              p_occupants: number
+              p_phone: string
+              p_rent: number
+              p_room_id: string
+              p_service_period: string
+              p_start_date: string
+              p_tenant_name: string
+              p_water: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_code: string
+              p_contract_start?: string
+              p_deposit: number
+              p_elec: number
+              p_end_date?: string
+              p_items: Json
+              p_note?: string
+              p_occupants: number
+              p_phone: string
+              p_rent: number
+              p_room_id: string
+              p_service_period: string
+              p_start_date: string
+              p_tenant_name: string
+              p_water: number
+            }
+            Returns: string
+          }
       move_out: {
         Args: {
           p_code: string
@@ -533,6 +554,17 @@ export type Database = {
           p_note?: string
           p_room_id: string
           p_water: number
+        }
+        Returns: undefined
+      }
+      update_contract: {
+        Args: {
+          p_contract_id: string
+          p_end_date?: string
+          p_occupants: number
+          p_phone: string
+          p_rent: number
+          p_tenant_name: string
         }
         Returns: undefined
       }

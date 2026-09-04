@@ -59,3 +59,15 @@ export function periodsLine(
   if (service) parts.push(`Dịch vụ ${periodLabel(service)}`);
   return parts.join(" · ");
 }
+
+/** Cộng thêm n tháng vào ngày 'YYYY-MM-DD'. Dùng cho chọn nhanh thời hạn HĐ. */
+export function addMonthsIso(iso: string, months: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const base = new Date(y, m - 1 + months, 1);
+  // Ngày 31 cộng sang tháng 30 ngày thì lùi về ngày cuối tháng đó
+  const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+  base.setDate(Math.min(d, lastDay));
+  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(
+    base.getDate(),
+  ).padStart(2, "0")}`;
+}

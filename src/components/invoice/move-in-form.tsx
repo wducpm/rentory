@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { NumberField } from "@/components/forms/number-field";
 import { TextField } from "@/components/forms/text-field";
 import { SubmitBar } from "@/components/forms/submit-bar";
+import { TermPicker } from "@/components/forms/term-picker";
 import { ItemsEditor } from "@/components/invoice/items-editor";
 import { SectionHeader } from "@/components/ui-kit";
 import { moveIn } from "@/lib/actions";
@@ -38,6 +39,10 @@ export function MoveInForm({
   const [phone, setPhone] = useState("");
   const [occupants, setOccupants] = useState<number | "">(1);
   const [startDate, setStartDate] = useState(todayIso());
+  // Ngày bắt đầu HĐ mặc định bám theo ngày nhận phòng cho tới khi admin tự sửa
+  const [contractStart, setContractStart] = useState(todayIso());
+  const [contractStartTouched, setContractStartTouched] = useState(false);
+  const [endDate, setEndDate] = useState("");
   const [rent, setRent] = useState<number | "">(room.base_rent);
   const [deposit, setDeposit] = useState<number | "">(room.base_rent);
   const [elec, setElec] = useState<number | "">(room.current_elec);
@@ -78,6 +83,10 @@ export function MoveInForm({
       toast.error("Chưa nhập tên khách");
       return;
     }
+    if (endDate && endDate <= contractStart) {
+      toast.error("Ngày kết thúc hợp đồng phải sau ngày bắt đầu.");
+      return;
+    }
     start(async () => {
       const res = await moveIn({
         room_id: room.id,
@@ -86,6 +95,8 @@ export function MoveInForm({
         phone,
         occupants: contract.occupants,
         start_date: startDate,
+        contract_start: contractStart,
+        end_date: endDate || null,
         deposit: contract.deposit,
         rent: contract.rent,
         service_period: draft.service_period!,
@@ -138,7 +149,38 @@ export function MoveInForm({
             type="date"
             label="Ngày nhận phòng"
             value={startDate}
-            onChange={setStartDate}
+            onChange={(v) => {
+              setStartDate(v);
+              if (!contractStartTouched) setContractStart(v);
+            }}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <TextField
+              id="contract-start"
+              type="date"
+              label="HĐ bắt đầu"
+              value={contractStart}
+              onChange={(v) => {
+                setContractStart(v);
+                setContractStartTouched(true);
+              }}
+              hint={contractStartTouched ? undefined : "Theo ngày nhận phòng"}
+            />
+            <TextField
+              id="contract-end"
+              type="date"
+              label="HĐ kết thúc"
+              value={endDate}
+              onChange={setEndDate}
+              hint={endDate ? undefined : "Để trống = không thời hạn"}
+            />
+          </div>
+
+          <TermPicker
+            startDate={contractStart}
+            endDate={endDate}
+            onPick={setEndDate}
           />
           <div className="grid grid-cols-2 gap-3">
             <NumberField

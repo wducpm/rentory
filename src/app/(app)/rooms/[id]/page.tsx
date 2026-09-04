@@ -2,17 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowRightLeft,
-  CalendarClock,
   ChevronRight,
   History,
   LogIn,
   LogOut,
-  Phone,
   Receipt,
-  Users,
 } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { EmptyState, IconTile, Money, Pill, SectionHeader } from "@/components/ui-kit";
+import { ContractCard } from "@/components/contract/contract-card";
 import { getRoom } from "@/lib/data";
 import { displayInvoiceCode } from "@/lib/billing";
 import { dateLabel, INVOICE_TYPE_LABEL, periodsLine, ROOM_STATUS_LABEL } from "@/lib/labels";
@@ -72,26 +70,18 @@ export default async function RoomPage({
         <section>
           <SectionHeader title="Hợp đồng hiện tại" />
           {occupied ? (
-            <div className="bg-card border-border space-y-2 rounded-2xl border p-4">
-              <p className="text-base font-semibold">{activeContract.tenant_name}</p>
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                <Field icon={<Users />} label="Số người">
-                  {activeContract.occupants}
-                </Field>
-                <Field icon={<Phone />} label="Điện thoại">
-                  {activeContract.phone ?? "—"}
-                </Field>
-                <Field icon={<CalendarClock />} label="Bắt đầu">
-                  {dateLabel(activeContract.start_date)}
-                </Field>
-                <Field icon={<Receipt />} label="Tiền phòng">
-                  <Money value={activeContract.rent} />
-                </Field>
-                <Field icon={<Receipt />} label="Cọc">
-                  <Money value={activeContract.deposit} />
-                </Field>
-              </dl>
-            </div>
+            <ContractCard
+              contract={{
+                id: activeContract.id,
+                tenant_name: activeContract.tenant_name,
+                phone: activeContract.phone,
+                occupants: activeContract.occupants,
+                rent: activeContract.rent,
+                deposit: activeContract.deposit,
+                start_date: activeContract.start_date,
+                end_date: activeContract.end_date,
+              }}
+            />
           ) : (
             <EmptyState
               icon={<LogIn />}
@@ -185,28 +175,6 @@ export default async function RoomPage({
         </section>
       </main>
     </>
-  );
-}
-
-function Field({
-  icon,
-  label,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <dt className="text-muted-foreground flex items-center gap-1 text-[11px]">
-        <span className="[&>svg]:size-3" aria-hidden>
-          {icon}
-        </span>
-        {label}
-      </dt>
-      <dd className="mt-0.5 font-semibold">{children}</dd>
-    </div>
   );
 }
 

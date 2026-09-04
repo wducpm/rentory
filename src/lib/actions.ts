@@ -239,6 +239,8 @@ const moveInSchema = z.object({
   phone: z.string().trim().default(""),
   occupants: z.number().int().min(1),
   start_date: z.string(),
+  contract_start: z.string(),
+  end_date: z.string().nullable().default(null),
   deposit: z.number().int().min(0),
   rent: z.number().int().min(0),
   service_period: z.string(),
@@ -255,6 +257,9 @@ export async function moveIn(
   if (!parsed.success) return fail(parsed.error.issues[0].message);
   const d = parsed.data;
 
+  if (d.end_date && d.end_date <= d.contract_start)
+    return fail("Ngày kết thúc hợp đồng phải sau ngày bắt đầu.");
+
   const { building, supabase } = await ctx();
   const code = await makeCode(
     building.id,
@@ -270,6 +275,8 @@ export async function moveIn(
     p_phone: d.phone,
     p_occupants: d.occupants,
     p_start_date: d.start_date,
+    p_contract_start: d.contract_start,
+    p_end_date: d.end_date ?? undefined,
     p_deposit: d.deposit,
     p_rent: d.rent,
     p_code: code,
@@ -439,5 +446,40 @@ export async function updateReceiptItem(
 
   if (error) return fail(error.message);
   revalidatePath(`/invoices/${invoiceId}`);
+  return { ok: true, data: undefined };
+}
+
+// ── S-03 · sửa hợp đồng đang hiệu lực ─────────────────────────────────────
+// Chỉ đổi điều khoản từ đây về sau. Hóa đơn đã lập giữ nguyên snapshot (N5),
+// phiếu thu đã ghi không đổi (HD-08 không lan truyền).
+const contractSchema = z.object({
+  contract_id: z.string().uuid(),
+  tenant_name: z.string().trim().min(1, "Chưa nhập tên khách"),
+  phone: z.string().trim().default(""),
+  occupants: z.number().int().min(1, "Số người ở tối thiểu là 1"),
+  rent: z.number().int().min(0),
+  end_date: z.string().nullable().default(null),
+});
+
+export async function updateContract(
+  input: z.input<typeof contractSchema>,
+): Promise<ActionResult> {
+  const parsed = contractSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  const d = parsed.data;
+
+  const { supabase } = await ctx();
+  const { error } = await supabase.rpc("update_contract", {
+    p_contract_id: d.contract_id,
+    p_tenant_name: d.tenant_name,
+    p_phone: d.phone,
+    p_occupants: d.occupants,
+    p_rent: d.rent,
+    p_end_date: d.end_date ?? undefined,
+  });
+
+  if (error) return fail(error.message);
+  revalidatePath("/");
+  revalidatePath("/rooms");
   return { ok: true, data: undefined };
 }
