@@ -91,6 +91,9 @@ src/
       defaults.ts         #   HD-01/02/03 số liệu mặc định 3 loại hóa đơn
       recognized.ts       #   TT-03/TT-06 số ghi nhận & trạng thái thu
       marks.ts            #   HD-04/HD-08a mốc công tơ + log
+      meter.ts            #   BR-M01 thứ tự đọc công tơ, ngày chốt mặc định
+      print.ts            #   mục 7 SRS — model bản in hóa đơn
+    png.ts                # xuất DOM → PNG (không dùng thư viện ngoài)
     supabase/             # client (browser) · server (RLS) · admin (bypass RLS)
     tenant.ts             # 2.5 host → slug tòa nhà
     env.ts                # validate env bằng Zod

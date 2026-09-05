@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { NumberField } from "@/components/forms/number-field";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { saveSettings } from "@/lib/actions";
 
 type Prices = {
@@ -13,23 +15,38 @@ type Prices = {
   common_fee: number;
 };
 
-export function PricesForm({ initial }: { initial: Prices }) {
+type Initial = Prices & { invoice_note: string };
+
+const PRICE_KEYS = [
+  "elec_price",
+  "water_price",
+  "internet_fee",
+  "common_fee",
+] as const;
+
+export function PricesForm({ initial }: { initial: Initial }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [v, setV] = useState<Record<keyof Prices, number | "">>(initial);
+  const [v, setV] = useState<Record<(typeof PRICE_KEYS)[number], number | "">>({
+    elec_price: initial.elec_price,
+    water_price: initial.water_price,
+    internet_fee: initial.internet_fee,
+    common_fee: initial.common_fee,
+  });
+  const [note, setNote] = useState(initial.invoice_note);
 
-  const dirty = (Object.keys(initial) as (keyof Prices)[]).some(
-    (k) => v[k] !== initial[k],
-  );
+  const dirty =
+    PRICE_KEYS.some((k) => v[k] !== initial[k]) ||
+    note !== initial.invoice_note;
 
   function save() {
     start(async () => {
-      const payload = Object.fromEntries(
-        (Object.keys(initial) as (keyof Prices)[]).map((k) => [
-          k,
-          v[k] === "" ? 0 : Number(v[k]),
-        ]),
-      ) as Prices;
+      const payload = {
+        ...(Object.fromEntries(
+          PRICE_KEYS.map((k) => [k, v[k] === "" ? 0 : Number(v[k])]),
+        ) as Prices),
+        invoice_note: note.trim() || null,
+      };
 
       const res = await saveSettings(payload);
       if (res.ok) {
@@ -72,6 +89,24 @@ export function PricesForm({ initial }: { initial: Prices }) {
           value={v.common_fee}
           onChange={(x) => setV({ ...v, common_fee: x })}
         />
+      </div>
+
+      {/* AC-14.4 — ghi chú in ở cuối hóa đơn, tùy từng tòa */}
+      <div className="grid gap-1.5">
+        <Label htmlFor="invoice_note" className="text-xs">
+          Ghi chú cuối hóa đơn
+        </Label>
+        <Textarea
+          id="invoice_note"
+          rows={3}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={"ĐỂ XE DƯỚI TẦNG HẦM\nTHANH TOÁN TỪ MÙNG 01 - 05"}
+          className="rounded-xl"
+        />
+        <p className="text-muted-foreground text-[11px]">
+          In màu đỏ ở cuối mọi hóa đơn tải về. Xuống dòng được.
+        </p>
       </div>
 
       <button

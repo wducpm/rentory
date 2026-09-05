@@ -56,6 +56,7 @@ const settingsSchema = z.object({
   water_price: z.number().int().min(0),
   internet_fee: z.number().int().min(0),
   common_fee: z.number().int().min(0),
+  invoice_note: z.string().nullable().default(null),
 });
 
 export async function saveSettings(
@@ -71,6 +72,7 @@ export async function saveSettings(
 
   if (error) return fail(error.message);
   revalidatePath("/settings");
+  revalidatePath("/invoices", "layout");
   return { ok: true, data: undefined };
 }
 
@@ -186,20 +188,55 @@ const periodicSchema = z.object({
   note: z.string().nullable().default(null),
 });
 
-export async function createPeriodicInvoice(
+/**
+ * FR-105 + BR-M07 — lập hóa đơn định kỳ.
+ *
+ * Một hợp đồng chỉ có MỘT hóa đơn định kỳ cho mỗi kỳ dịch vụ: nếu kỳ đó đã có
+ * hóa đơn thì cập nhật bản đã có thay vì tạo bản thứ hai. Việc ghi đè mốc khi
+ * cập nhật do `update_invoice` quyết theo HD-08a — chỉ đổi mốc nếu hóa đơn đó
+ * đang giữ mốc, không thì mốc sẽ nhảy lùi.
+ */
+export async function savePeriodicInvoice(
   input: z.input<typeof periodicSchema>,
-): Promise<ActionResult<string>> {
+): Promise<ActionResult<{ id: string; created: boolean }>> {
   const parsed = periodicSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0].message);
   const d = parsed.data;
 
-  // HD-09: chặn lưu khi chỉ số cuối < chỉ số đầu
+  // BR-M03 / HD-09: chặn lưu khi chỉ số cuối < chỉ số đầu
   if (d.elec_end < d.elec_start || d.water_end < d.water_start)
     return fail(
       "Chỉ số cuối nhỏ hơn chỉ số đầu. Nếu thay công tơ, sửa mốc thủ công trước (HD-11).",
     );
 
   const { building, supabase } = await ctx();
+
+  const { data: existing } = await supabase
+    .from("invoices")
+    .select("id")
+    .eq("contract_id", d.contract_id)
+    .eq("type", "periodic")
+    .eq("service_period", d.service_period)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase.rpc("update_invoice", {
+      p_invoice_id: existing.id,
+      p_issue_date: d.issue_date,
+      p_utility_period: d.utility_period,
+      p_service_period: d.service_period,
+      p_elec_start: d.elec_start,
+      p_elec_end: d.elec_end,
+      p_water_start: d.water_start,
+      p_water_end: d.water_end,
+      p_items: d.items,
+      p_note: d.note ?? undefined,
+    });
+    if (error) return fail(error.message);
+    revalidateMeters(d.room_id, existing.id);
+    return { ok: true, data: { id: existing.id, created: false } };
+  }
+
   const code = await makeCode(
     building.id,
     d.room_code,
@@ -224,11 +261,16 @@ export async function createPeriodicInvoice(
   });
 
   if (error) return fail(error.message);
+  revalidateMeters(d.room_id, data as string);
+  return { ok: true, data: { id: data as string, created: true } };
+}
+
+function revalidateMeters(roomId: string, invoiceId: string) {
   revalidatePath("/");
   revalidatePath("/rooms");
   revalidatePath("/meters");
-  revalidatePath(`/rooms/${d.room_id}`);
-  return { ok: true, data: data as string };
+  revalidatePath(`/rooms/${roomId}`);
+  revalidatePath(`/invoices/${invoiceId}`);
 }
 
 // ── HD-01 · S-07 nhận phòng ───────────────────────────────────────────────

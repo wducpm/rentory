@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           building_id: string
           common_fee: number
+          invoice_note: string | null
           elec_price: number
           internet_fee: number
           updated_at: string
@@ -26,6 +27,7 @@ export type Database = {
         Insert: {
           building_id: string
           common_fee?: number
+          invoice_note?: string | null
           elec_price?: number
           internet_fee?: number
           updated_at?: string
@@ -34,6 +36,7 @@ export type Database = {
         Update: {
           building_id?: string
           common_fee?: number
+          invoice_note?: string | null
           elec_price?: number
           internet_fee?: number
           updated_at?: string

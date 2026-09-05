@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { FileDown } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { InvoiceDetail } from "@/components/invoice/invoice-detail";
 import { getInvoice } from "@/lib/data";
@@ -24,6 +26,15 @@ export default async function InvoicePage({
         eyebrow={`${INVOICE_TYPE_LABEL[invoice.type]} · P.${room.code}`}
         title={displayInvoiceCode(invoice.code)}
         backHref={`/rooms/${room.id}`}
+        actions={
+          <Link
+            href={`/invoices/${invoice.id}/print`}
+            aria-label="Xem và tải hóa đơn"
+            className="bg-card border-border focus-visible:ring-ring inline-flex size-11 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <FileDown className="size-4" aria-hidden />
+          </Link>
+        }
       />
       <main className="mx-auto max-w-3xl px-4 pb-6 md:px-6">
         <InvoiceDetail

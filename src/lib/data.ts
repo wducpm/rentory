@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { currentBuilding } from "@/lib/building";
 import {
+  sortForMeterReading,
   invoiceStatusFromRows,
   paidTotalFromRows,
   unpaidFeesFromRows,
@@ -203,7 +204,7 @@ export async function getInvoice(invoiceId: string) {
     .maybeSingle();
   if (!invoice) return null;
 
-  const [itemsRes, recognizedRes, roomRes, contractRes, receiptsRes] =
+  const [itemsRes, recognizedRes, roomRes, contractRes, receiptsRes, settingsRes] =
     await Promise.all([
       supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId),
       supabase.from("recognized_items").select("*").eq("invoice_id", invoiceId),
@@ -219,6 +220,11 @@ export async function getInvoice(invoiceId: string) {
         .eq("invoice_id", invoiceId)
         .order("receipt_date", { ascending: false })
         .order("created_at", { ascending: false }),
+      supabase
+        .from("building_settings")
+        .select("*")
+        .eq("building_id", invoice.building_id)
+        .maybeSingle(),
     ]);
 
   const items = groupItems(itemsRes.data ?? []).get(invoiceId) ?? [];
@@ -230,11 +236,22 @@ export async function getInvoice(invoiceId: string) {
     room: roomRes.data,
     contract: contractRes.data,
     receipts: receiptsRes.data ?? [],
+    settings: settingsRes.data ?? null,
   };
 }
 
-/** S-06 — lưới chốt kỳ: mọi phòng đang thuê + mốc hiện tại + hợp đồng. */
-export async function listOccupiedRooms() {
+/**
+ * S-06 — lưới chốt kỳ.
+ *
+ * BR-M02: chỉ phòng đang có hợp đồng hiệu lực. Phòng Trống / Bảo trì không
+ * xuất hiện vì không có ai để lập hóa đơn.
+ * BR-M01: sắp giảm dần theo số phòng, khớp thứ tự admin đi đọc công tơ.
+ *
+ * Kèm toàn bộ hóa đơn định kỳ đã lập của các hợp đồng này để màn biết kỳ nào
+ * đã chốt (BR-M07) và cho sửa lại chỉ số (FR-106). Một tòa cỡ vài chục phòng
+ * nên tải hết một lần rẻ hơn là truy vấn theo từng kỳ admin chọn.
+ */
+export async function listMeterRows() {
   const building = await requireBuilding();
   const supabase = await createClient();
 
@@ -243,8 +260,7 @@ export async function listOccupiedRooms() {
       .from("rooms")
       .select("*")
       .eq("building_id", building.id)
-      .eq("archived", false)
-      .order("code"),
+      .eq("archived", false),
     supabase.from("contracts").select("*").eq("active", true),
     supabase
       .from("building_settings")
@@ -254,12 +270,45 @@ export async function listOccupiedRooms() {
   ]);
 
   const contracts = contractsRes.data ?? [];
+  const occupied = sortForMeterReading(
+    (roomsRes.data ?? [])
+      .map((room) => ({
+        room,
+        contract: contracts.find((c) => c.room_id === room.id) ?? null,
+      }))
+      .filter((r) => r.contract !== null)
+      .map((r) => ({ ...r, code: r.room.code })),
+  );
+
+  const contractIds = occupied.map((r) => r.contract!.id);
+  const invoicesRes = contractIds.length
+    ? await supabase
+        .from("invoices")
+        .select("*")
+        .eq("type", "periodic")
+        .in("contract_id", contractIds)
+    : { data: [] as InvoiceRow[] };
+
+  const invoices = invoicesRes.data ?? [];
+  const itemsRes = invoices.length
+    ? await supabase
+        .from("invoice_items")
+        .select("*")
+        .in(
+          "invoice_id",
+          invoices.map((i) => i.id),
+        )
+    : { data: [] as T["invoice_items"]["Row"][] };
+
+  const itemsByInvoice = groupItems(itemsRes.data ?? []);
+
   return {
     building,
     settings: settingsRes.data,
-    rooms: (roomsRes.data ?? []).map((room) => ({
-      room,
-      contract: contracts.find((c) => c.room_id === room.id) ?? null,
+    rooms: occupied,
+    periodicInvoices: invoices.map((inv) => ({
+      ...inv,
+      items: itemsByInvoice.get(inv.id) ?? [],
     })),
   };
 }

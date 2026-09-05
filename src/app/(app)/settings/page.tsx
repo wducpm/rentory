@@ -37,6 +37,7 @@ export default async function SettingsPage() {
               water_price: ctx.settings?.water_price ?? 30000,
               internet_fee: ctx.settings?.internet_fee ?? 100000,
               common_fee: ctx.settings?.common_fee ?? 150000,
+              invoice_note: ctx.settings?.invoice_note ?? "",
             }}
           />
         </section>
