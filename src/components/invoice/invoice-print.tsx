@@ -16,28 +16,51 @@ import { formatPrintAmount, type InvoicePrintModel } from "@/lib/billing";
  */
 
 const FONT = 'Arial, "Helvetica Neue", Helvetica, sans-serif';
-const INK = "#16182b";
-const MUTED = "#6b7280";
-const LINE = "#e5e7eb";
+const INK = "#1a1a2e";
+const BLUE = "#1a73e8";
+const GREEN = "#00b578";
+const RED = "#e8112d";
+const MUTED = "#9aa0a6";
+const LINE = "#eceef1";
 
 const sheet: React.CSSProperties = {
   width: 720,
   boxSizing: "border-box",
-  padding: 32,
+  padding: "36px 34px 30px",
   background: "#ffffff",
+  border: `1px solid ${LINE}`,
+  borderRadius: 12,
   color: INK,
   fontFamily: FONT,
   fontSize: 14,
-  lineHeight: 1.45,
+  lineHeight: 1.4,
 };
 
-const cellLabel: React.CSSProperties = {
-  padding: "2px 0 2px 16px",
-  color: MUTED,
+const divider: React.CSSProperties = {
+  height: 1,
+  background: LINE,
+  margin: "18px 0",
 };
+
+/** Nhãn mục lớn: ĐIỆN · NƯỚC · DỊCH VỤ CHUNG */
+const sectionLabel: React.CSSProperties = {
+  margin: 0,
+  fontSize: 13,
+  fontWeight: 700,
+  letterSpacing: 1.1,
+};
+
+/** Nhãn cột nhỏ màu xám bên trên từng con số */
+const cellLabel: React.CSSProperties = {
+  margin: 0,
+  fontSize: 12,
+  color: MUTED,
+  fontWeight: 400,
+};
+
 const cellValue: React.CSSProperties = {
-  padding: "2px 0",
-  textAlign: "right",
+  margin: "6px 0 0",
+  fontSize: 17,
   fontVariantNumeric: "tabular-nums",
 };
 
@@ -69,91 +92,142 @@ export function InvoicePrint({
     <div className="space-y-4 pb-6">
       <div className="overflow-x-auto">
         <article ref={ref} style={sheet}>
-          <div style={{ textAlign: "center" }}>
-            <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: 0.5 }}>
-              {model.title}
-            </h1>
-            {/* HD-13: mặt hóa đơn ghi rõ cả hai kỳ */}
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: MUTED }}>
-              {model.periodsLine}
-            </p>
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af" }}>
-              {model.code}
-            </p>
-          </div>
-
-          <p style={{ margin: "24px 0 0", fontSize: 18, fontWeight: 700 }}>
-            {model.roomLine}
+          <h1 style={{ margin: 0, fontSize: 31, fontWeight: 700, letterSpacing: -0.3 }}>
+            {model.title}
+          </h1>
+          {/* HD-13: mặt hóa đơn ghi rõ cả hai kỳ (mục 10 hạng mục 1) */}
+          <p style={{ margin: "7px 0 0", fontSize: 12, color: MUTED }}>
+            {model.periodsLine} · {model.code}
           </p>
-          {model.contractTerm ? (
-            <p style={{ margin: "2px 0 0", fontSize: 13, color: MUTED }}>
-              Thời hạn hợp đồng: {model.contractTerm}
-            </p>
-          ) : null}
 
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              marginTop: 24,
-              fontSize: 14,
-            }}
-          >
-            <tbody>
-              <Row label="GIÁ THUÊ" value={formatPrintAmount(model.rent)} bold />
+          <div style={divider} />
 
-              <Section label="ĐIỆN" />
-              <Detail label="Số đầu kì" value={String(model.elec.start)} />
-              <Detail label="Số cuối kì" value={String(model.elec.end)} />
-              <Detail label="Số điện đã sử dụng" value={`${model.elec.used} kWh`} />
-              <Row label="Tổng" value={formatPrintAmount(model.elec.amount)} />
-
-              <Section label="NƯỚC" />
-              <Detail label="Số đầu kì" value={String(model.water.start)} />
-              <Detail label="Số cuối kì" value={String(model.water.end)} />
-              <Detail label="Số nước đã sử dụng" value={`${model.water.used} m³`} />
-              <Row label="Tổng" value={formatPrintAmount(model.water.amount)} />
-
-              <Section label="DỊCH VỤ CHUNG" />
-              <Detail label="Số người" value={String(model.common.occupants)} />
-              <Row label="Tổng" value={formatPrintAmount(model.common.amount)} />
-
-              <Section label="INTERNET" />
-              <Row label="Tổng" value={formatPrintAmount(model.internet)} />
-
-              {model.extraLines.map((line) => (
-                <Row
-                  key={line.fee}
-                  label={line.label}
-                  value={formatPrintAmount(line.amount)}
-                  bold
-                />
-              ))}
-            </tbody>
-          </table>
-
+          {/* Phòng + người đại diện · thời hạn hợp đồng */}
           <div
             style={{
-              marginTop: 24,
-              paddingTop: 16,
-              borderTop: `2px solid ${INK}`,
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              gap: 16,
+              padding: "6px 0 2px",
             }}
           >
-            <Summary label="TIỀN PHÒNG" value={model.totals.room} />
-            <Summary label="TIỀN DỊCH VỤ" value={model.totals.service} />
-            <Summary label="TỔNG" value={model.totals.grand} strong />
+            <p style={{ margin: 0, fontSize: 19, fontWeight: 700, color: BLUE }}>
+              {model.roomLine}
+            </p>
+            {model.contractTerm ? (
+              <div style={{ textAlign: "right" }}>
+                <p style={cellLabel}>Thời hạn hợp đồng</p>
+                <p style={{ margin: "5px 0 0", fontSize: 19, color: BLUE }}>
+                  {model.contractTerm}
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          <div style={divider} />
+
+          <SimpleRow label="GIÁ THUÊ" value={formatPrintAmount(model.rent)} />
+
+          <div style={divider} />
+
+          <MeterBlock
+            label="ĐIỆN"
+            usedLabel="Số điện đã sử dụng"
+            start={model.elec.start}
+            end={model.elec.end}
+            used={`${model.elec.used} kWh`}
+            amount={model.elec.amount}
+          />
+
+          <div style={divider} />
+
+          <MeterBlock
+            label="NƯỚC"
+            usedLabel="Số nước đã sử dụng"
+            start={model.water.start}
+            end={model.water.end}
+            used={`${model.water.used} m³`}
+            amount={model.water.amount}
+          />
+
+          <div style={divider} />
+
+          {/* DỊCH VỤ CHUNG: số người bên trái, tổng bên phải */}
+          <div>
+            <p style={sectionLabel}>DỊCH VỤ CHUNG</p>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginTop: 12,
+              }}
+            >
+              <div>
+                <p style={cellLabel}>Số người</p>
+                <p style={cellValue}>{model.common.occupants}</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={cellLabel}>Tổng</p>
+                <p style={{ ...cellValue, fontWeight: 700 }}>
+                  {formatPrintAmount(model.common.amount)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div style={divider} />
+
+          <SimpleRow label="INTERNET" value={formatPrintAmount(model.internet)} />
+
+          {/* Dòng bổ sung theo loại hóa đơn: CỌC (nhận phòng) / HOÀN CỌC (trả phòng) */}
+          {model.extraLines.map((line) => (
+            <div key={line.fee}>
+              <div style={divider} />
+              <SimpleRow
+                label={line.label}
+                value={formatPrintAmount(line.amount)}
+              />
+            </div>
+          ))}
+
+          {/* Khối tổng kết */}
+          <div
+            style={{
+              marginTop: 26,
+              padding: "20px 22px",
+              background: "#f7f8fa",
+              borderRadius: 10,
+            }}
+          >
+            <SummaryRow label="TIỀN PHÒNG" value={model.totals.room} color={GREEN} />
+            <SummaryRow
+              label="TIỀN DỊCH VỤ"
+              value={model.totals.service}
+              color={GREEN}
+              spaced
+            />
+            <div style={{ height: 1, background: "#e4e7eb", margin: "14px 0" }} />
+            <SummaryRow
+              label="TỔNG"
+              value={model.totals.grand}
+              color={RED}
+              strong
+            />
           </div>
 
           {model.note ? (
             <p
               style={{
-                margin: "24px 0 0",
+                margin: "26px 0 4px",
                 textAlign: "center",
-                fontSize: 13,
+                fontSize: 15,
                 fontWeight: 700,
-                lineHeight: 1.6,
+                lineHeight: 1.5,
+                letterSpacing: 0.2,
                 whiteSpace: "pre-line",
-                color: "#dc2626",
+                textTransform: "uppercase",
+                color: RED,
               }}
             >
               {model.note}
@@ -185,70 +259,124 @@ export function InvoicePrint({
   );
 }
 
-function Section({ label }: { label: string }) {
+/** Dòng một cặp nhãn–số: GIÁ THUÊ · INTERNET · CỌC · HOÀN CỌC */
+function SimpleRow({ label, value }: { label: string; value: string }) {
   return (
-    <tr>
-      <td colSpan={2} style={{ padding: "16px 0 4px", fontWeight: 700 }}>
-        {label}
-      </td>
-    </tr>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        justifyContent: "space-between",
+        gap: 16,
+      }}
+    >
+      <span style={sectionLabel}>{label}</span>
+      <span
+        style={{
+          fontSize: 18,
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <tr>
-      <td style={cellLabel}>{label}</td>
-      <td style={cellValue}>{value}</td>
-    </tr>
-  );
-}
-
-function Row({
+/** Khối công tơ: 4 cột đầu kì · cuối kì · đã sử dụng · tổng */
+function MeterBlock({
   label,
-  value,
-  bold,
+  usedLabel,
+  start,
+  end,
+  used,
+  amount,
 }: {
   label: string;
-  value: string;
-  bold?: boolean;
+  usedLabel: string;
+  start: number;
+  end: number;
+  used: string;
+  amount: number;
 }) {
   return (
-    <tr>
-      <td style={bold ? { padding: "2px 0", fontWeight: 700 } : cellLabel}>
-        {label}
-      </td>
-      <td style={{ ...cellValue, fontWeight: bold ? 700 : 600 }}>{value}</td>
-    </tr>
+    <div>
+      <p style={sectionLabel}>{label}</p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1.35fr 1.15fr",
+          gap: 12,
+          marginTop: 12,
+        }}
+      >
+        <div>
+          <p style={cellLabel}>Số đầu kì</p>
+          <p style={cellValue}>{start}</p>
+        </div>
+        <div>
+          <p style={cellLabel}>Số cuối kì</p>
+          <p style={cellValue}>{end}</p>
+        </div>
+        <div>
+          <p style={cellLabel}>{usedLabel}</p>
+          <p style={cellValue}>{used}</p>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <p style={cellLabel}>Tổng</p>
+          <p style={{ ...cellValue, fontWeight: 700 }}>
+            {formatPrintAmount(amount)}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function Summary({
+function SummaryRow({
   label,
   value,
+  color,
   strong,
+  spaced,
 }: {
   label: string;
   value: number;
+  color: string;
   strong?: boolean;
+  spaced?: boolean;
 }) {
   return (
-    <p
+    <div
       style={{
         display: "flex",
-        justifyContent: "space-between",
         alignItems: "baseline",
-        margin: strong ? "8px 0 0" : "0 0 2px",
-        paddingTop: strong ? 8 : 0,
-        borderTop: strong ? `1px solid ${LINE}` : undefined,
-        fontSize: strong ? 20 : 15,
-        fontWeight: strong ? 700 : 400,
+        justifyContent: "space-between",
+        gap: 16,
+        marginTop: spaced ? 12 : 0,
       }}
     >
-      <span style={{ fontWeight: strong ? 700 : 600 }}>{label}</span>
-      <span style={{ fontVariantNumeric: "tabular-nums" }}>
+      <span
+        style={{
+          fontSize: strong ? 19 : 17,
+          fontWeight: 700,
+          letterSpacing: 0.3,
+          color: strong ? color : INK,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontSize: strong ? 23 : 19,
+          fontWeight: 700,
+          color,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
         {formatPrintAmount(value)}
       </span>
-    </p>
+    </div>
   );
 }
