@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { publicEnv } from "@/lib/env";
+import { persistentCookieOptions } from "./cookies";
 
 /**
  * Refresh session của Supabase Auth trên mọi request và chuyển hướng khách
@@ -14,6 +15,7 @@ export async function updateSession(
     publicEnv().NEXT_PUBLIC_SUPABASE_URL,
     publicEnv().NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
+      cookieOptions: persistentCookieOptions,
       cookies: {
         getAll() {
           return request.cookies.getAll();

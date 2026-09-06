@@ -11,7 +11,7 @@ export function NoBuilding({ slug }: { slug: string }) {
         <EmptyState
           icon={<Building2 />}
           title={`Không tìm thấy tòa nhà "${slug}"`}
-          description="Tài khoản này chưa được gán làm admin của tòa nào. Tạo bản ghi buildings với admin_id trỏ tới tài khoản hiện tại rồi tải lại trang."
+          description="Tài khoản này chưa được cấp quyền vào tòa nào. Thêm một dòng trong building_admins nối tài khoản với tòa nhà rồi tải lại trang."
         />
       </main>
     </>

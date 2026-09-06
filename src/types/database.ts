@@ -14,6 +14,32 @@ export type Database = {
   }
   public: {
     Tables: {
+      building_admins: {
+        Row: {
+          building_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          building_id: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          building_id?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "building_admins_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       building_settings: {
         Row: {
           building_id: string
@@ -55,7 +81,6 @@ export type Database = {
       buildings: {
         Row: {
           address: string | null
-          admin_id: string
           created_at: string
           id: string
           name: string
@@ -63,7 +88,6 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          admin_id: string
           created_at?: string
           id?: string
           name: string
@@ -71,7 +95,6 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          admin_id?: string
           created_at?: string
           id?: string
           name?: string
