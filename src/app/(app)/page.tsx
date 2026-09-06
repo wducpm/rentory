@@ -18,6 +18,7 @@ import {
   SectionHeader,
   StatCard,
 } from "@/components/ui-kit";
+import { headers } from "next/headers";
 import { getDashboard, NoBuildingError } from "@/lib/data";
 import { currentBuildingSlug } from "@/lib/building";
 import { displayInvoiceCode, formatVnd } from "@/lib/billing";
@@ -45,6 +46,8 @@ export default async function HomePage() {
     dueAmount,
     unreadMeters,
   } = data;
+
+  const host = (await headers()).get("host") ?? "";
 
   const occupancy = totalRooms ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
   const collected = periodInvoices
@@ -191,7 +194,7 @@ export default async function HomePage() {
 
         <p className="text-muted-foreground px-1 text-center text-[11px]">
           <Link href="/settings" className="underline underline-offset-2">
-            {building.slug}.ducpm.work
+            {host}
           </Link>
         </p>
       </main>

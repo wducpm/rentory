@@ -49,12 +49,18 @@ export function PricesForm({ initial }: { initial: Initial }) {
       };
 
       const res = await saveSettings(payload);
-      if (res.ok) {
-        toast.success("Đã lưu đơn giá");
-        router.refresh();
-      } else {
+      if (!res.ok) {
         toast.error(res.error);
+        return;
       }
+
+      if (res.data.noteSaved) toast.success("Đã lưu cài đặt");
+      else
+        toast.warning(
+          "Đã lưu đơn giá. Ghi chú hóa đơn chưa lưu được — database còn thiếu migration 0005.",
+          { duration: 8000 },
+        );
+      router.refresh();
     });
   }
 

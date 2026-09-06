@@ -2,7 +2,7 @@
 
 Quản lý hóa đơn phòng trọ — một codebase, một deployment, nhiều tòa nhà (định tuyến theo subdomain).
 
-Tòa nhà đầu tiên: **190 Nguyễn Trãi** → `190nguyentrai.ducpm.work`
+Tòa nhà đầu tiên: **190 Nguyễn Trãi** → https://190nt.vercel.app
 
 Nguồn sự thật nghiệp vụ: [`HANDOFF-rentory.md`](./HANDOFF-rentory.md) mục 4.
 
@@ -112,10 +112,20 @@ Mỗi function comment mã quy tắc tương ứng (`// HD-02`).
 - `main` → Production (Vercel project `rentory`, account `ducpm103`)
 - PR → Preview
 
-Domain `190nguyentrai.ducpm.work` cần bản ghi DNS tại nơi quản lý `ducpm.work`:
+Domain đang dùng: **`190nt.vercel.app`** — domain free của account, không cần DNS.
+
+`*.vercel.app` luôn rơi về `DEFAULT_BUILDING_SLUG` trong middleware, kể cả domain
+"đẹp" như `190nt`: không phân biệt được với URL preview
+(`rentory-a1iav6i1v-ducpm103.vercel.app`), mà đoán sai thì Preview chết. Một tòa
+thì fallback là đủ.
+
+**Khi thêm tòa thứ hai** sẽ cần domain riêng để mỗi tòa có subdomain thật
+(`toa2.example.com`). Lúc đó thêm domain vào project rồi trỏ DNS:
 
 ```
-CNAME   190nguyentrai   cname.vercel-dns.com
+CNAME   <slug>   cname.vercel-dns.com
 ```
 
-Chỉ **thêm** bản ghi, không sửa/xóa bản ghi có sẵn của domain gốc. Không dùng wildcard.
+Nếu apex domain nằm ở một Vercel account khác, account này phải verify quyền sở
+hữu bằng bản ghi `TXT _vercel` do Vercel cấp — subdomain của cùng một apex chạy
+ở các account khác nhau được, nhưng cùng một hostname thì chỉ một account giữ.

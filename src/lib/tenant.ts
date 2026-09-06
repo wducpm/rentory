@@ -16,6 +16,12 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]);
  * Một codebase, một deployment, nhiều tòa: `190nguyentrai.ducpm.work` →
  * '190nguyentrai'. Host không có subdomain hợp lệ → rơi về
  * DEFAULT_BUILDING_SLUG.
+ *
+ * `*.vercel.app` luôn rơi về fallback, kể cả domain "đẹp" như
+ * `190nt.vercel.app`: không phân biệt được với URL preview
+ * (`rentory-a1iav6i1v-ducpm103.vercel.app`), mà đoán sai thì preview chết.
+ * Chừng nào còn một tòa thì fallback là đủ; thêm tòa thứ hai sẽ cần domain
+ * riêng để mỗi tòa có subdomain thật.
  */
 export function buildingSlugFromHost(host: string | null): string {
   if (!host) return DEFAULT_BUILDING_SLUG;

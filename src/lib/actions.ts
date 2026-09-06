@@ -61,19 +61,41 @@ const settingsSchema = z.object({
 
 export async function saveSettings(
   input: z.input<typeof settingsSchema>,
-): Promise<ActionResult> {
+): Promise<ActionResult<{ noteSaved: boolean }>> {
   const parsed = settingsSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0].message);
 
   const { building, supabase } = await ctx();
+  const { invoice_note, ...prices } = parsed.data;
+
   const { error } = await supabase
     .from("building_settings")
-    .upsert({ building_id: building.id, ...parsed.data });
+    .upsert({ building_id: building.id, ...prices, invoice_note });
 
-  if (error) return fail(error.message);
+  if (!error) {
+    revalidateSettings();
+    return { ok: true, data: { noteSaved: true } };
+  }
+
+  // TẠM THỜI — bỏ khi migration 0005 đã apply.
+  // Cột invoice_note nằm ở 0005; nếu DB chưa có cột thì vẫn lưu được 4 đơn giá
+  // thay vì chặn luôn cả nút Lưu.
+  const missingColumn =
+    error.code === "PGRST204" || error.code === "42703";
+  if (!missingColumn) return fail(error.message);
+
+  const retry = await supabase
+    .from("building_settings")
+    .upsert({ building_id: building.id, ...prices });
+
+  if (retry.error) return fail(retry.error.message);
+  revalidateSettings();
+  return { ok: true, data: { noteSaved: false } };
+}
+
+function revalidateSettings() {
   revalidatePath("/settings");
   revalidatePath("/invoices", "layout");
-  return { ok: true, data: undefined };
 }
 
 // ── S-10 · quản lý phòng ──────────────────────────────────────────────────
