@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { currentBuilding } from "@/lib/building";
-import { existingInvoiceCodes } from "@/lib/data";
+import { existingInvoiceCodes, roomHasInvoices } from "@/lib/data";
 import { buildInvoiceCode, nextCodeSeq, type InvoiceType } from "@/lib/billing";
 
 export type ActionResult<T = void> =
@@ -30,6 +30,31 @@ const itemSchema = z.object({
 });
 
 const readingSchema = z.number().min(0);
+
+/** CR-02 · CR-03 — danh sách người ở. BR-P17 validate ở đây, không ở DB. */
+const occupantsSchema = z
+  .array(
+    z.object({
+      full_name: z.string().trim().min(1, "Chưa nhập họ tên của một người ở"),
+      phone: z.string().trim().default(""),
+      is_primary: z.boolean().default(false),
+    }),
+  )
+  .min(1, "Phải có ít nhất một người ở")
+  .superRefine((list, ctx) => {
+    const primaries = list.filter((o) => o.is_primary);
+    if (primaries.length !== 1)
+      ctx.addIssue({
+        code: "custom",
+        message: "Phải chọn đúng một người đại diện",
+      });
+    // BR-P17: SĐT bắt buộc riêng với người đại diện
+    if (primaries.length === 1 && !primaries[0].phone)
+      ctx.addIssue({
+        code: "custom",
+        message: "Người đại diện bắt buộc có số điện thoại",
+      });
+  });
 
 /** Sinh mã lưu, tự thêm hậu tố khi trùng trong cùng kỳ (4.4). */
 async function makeCode(
@@ -99,10 +124,14 @@ function revalidateSettings() {
 }
 
 // ── S-10 · quản lý phòng ──────────────────────────────────────────────────
+// CR-05: giá thuê thuộc hợp đồng, phòng không còn cột giá.
+// BR-S02: admin chỉ nhập phần số, tiền tố P do hệ thống gắn khi hiển thị.
 const roomSchema = z.object({
-  code: z.string().trim().min(1, "Chưa nhập số phòng"),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{2,4}$/, "Số phòng phải là 2–4 chữ số, không kèm chữ P"),
   floor: z.number().int().nullable(),
-  base_rent: z.number().int().min(0),
 });
 
 export async function createRoom(
@@ -136,6 +165,20 @@ export async function updateRoom(
   if (!parsed.success) return fail(parsed.error.issues[0].message);
 
   const { supabase } = await ctx();
+
+  // CR-04 · BR-P12/BR-S10: mã hóa đơn snapshot số phòng, đổi tên sẽ làm mã cũ
+  // lệch thực tế. Trigger ở DB cũng chặn, đây là lớp báo lỗi dễ hiểu cho admin.
+  const { data: current } = await supabase
+    .from("rooms")
+    .select("code")
+    .eq("id", roomId)
+    .maybeSingle();
+
+  if (current && current.code !== parsed.data.code && (await roomHasInvoices(roomId)))
+    return fail(
+      `Phòng ${current.code} đã phát sinh hóa đơn nên không đổi được tên. Mã hóa đơn đã lưu số phòng cũ.`,
+    );
+
   const { error } = await supabase
     .from("rooms")
     .update(parsed.data)
@@ -148,14 +191,27 @@ export async function updateRoom(
   return { ok: true, data: undefined };
 }
 
-export async function archiveRoom(
-  roomId: string,
-  archived: boolean,
-): Promise<ActionResult> {
+/**
+ * BR-S06/BR-S07 — loại phòng khỏi danh sách cho thuê.
+ * CR-07: không có chức năng khôi phục ở v1, nên chỉ nhận một chiều.
+ */
+export async function archiveRoom(roomId: string): Promise<ActionResult> {
   const { supabase } = await ctx();
+
+  // BR-S06: phòng đang có hợp đồng hiệu lực phải trả phòng trước
+  const { data: active } = await supabase
+    .from("contracts")
+    .select("id")
+    .eq("room_id", roomId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (active)
+    return fail("Phòng đang có hợp đồng hiệu lực. Trả phòng trước khi lưu trữ.");
+
   const { error } = await supabase
     .from("rooms")
-    .update({ archived })
+    .update({ archived: true })
     .eq("id", roomId);
 
   if (error) return fail(error.message);
@@ -299,9 +355,7 @@ function revalidateMeters(roomId: string, invoiceId: string) {
 const moveInSchema = z.object({
   room_id: z.string().uuid(),
   room_code: z.string(),
-  tenant_name: z.string().trim().min(1, "Chưa nhập tên khách"),
-  phone: z.string().trim().default(""),
-  occupants: z.number().int().min(1),
+  occupants: occupantsSchema,
   start_date: z.string(),
   contract_start: z.string(),
   end_date: z.string().nullable().default(null),
@@ -335,8 +389,6 @@ export async function moveIn(
 
   const { data, error } = await supabase.rpc("move_in", {
     p_room_id: d.room_id,
-    p_tenant_name: d.tenant_name,
-    p_phone: d.phone,
     p_occupants: d.occupants,
     p_start_date: d.start_date,
     p_contract_start: d.contract_start,
@@ -518,11 +570,9 @@ export async function updateReceiptItem(
 // phiếu thu đã ghi không đổi (HD-08 không lan truyền).
 const contractSchema = z.object({
   contract_id: z.string().uuid(),
-  tenant_name: z.string().trim().min(1, "Chưa nhập tên khách"),
-  phone: z.string().trim().default(""),
-  occupants: z.number().int().min(1, "Số người ở tối thiểu là 1"),
   rent: z.number().int().min(0),
   end_date: z.string().nullable().default(null),
+  occupants: occupantsSchema,
 });
 
 export async function updateContract(
@@ -535,11 +585,9 @@ export async function updateContract(
   const { supabase } = await ctx();
   const { error } = await supabase.rpc("update_contract", {
     p_contract_id: d.contract_id,
-    p_tenant_name: d.tenant_name,
-    p_phone: d.phone,
-    p_occupants: d.occupants,
     p_rent: d.rent,
     p_end_date: d.end_date ?? undefined,
+    p_occupants: d.occupants,
   });
 
   if (error) return fail(error.message);

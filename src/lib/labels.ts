@@ -16,10 +16,10 @@ export const INVOICE_TYPE_LABEL: Record<InvoiceType, string> = {
   move_out: "Trả phòng",
 };
 
+/** CR-01: chỉ còn hai trạng thái, suy từ hợp đồng (BR-P04). */
 export const ROOM_STATUS_LABEL = {
   occupied: "Đang thuê",
   vacant: "Trống",
-  maintenance: "Bảo trì",
 } as const;
 
 export const MARK_SOURCE_LABEL = {

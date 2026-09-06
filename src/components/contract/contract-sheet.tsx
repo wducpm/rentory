@@ -14,16 +14,15 @@ import {
 import { NumberField } from "@/components/forms/number-field";
 import { TextField } from "@/components/forms/text-field";
 import { TermPicker } from "@/components/forms/term-picker";
+import { OccupantsEditor } from "@/components/contract/occupants-editor";
 import { Label } from "@/components/ui/label";
 import { updateContract } from "@/lib/actions";
-import { formatVnd } from "@/lib/billing";
+import { formatVnd, validateOccupants, type ContractOccupant } from "@/lib/billing";
 import { dateLabel } from "@/lib/labels";
 
 export type EditableContract = {
   id: string;
-  tenant_name: string;
-  phone: string | null;
-  occupants: number;
+  occupants: ContractOccupant[];
   rent: number;
   deposit: number;
   start_date: string;
@@ -48,15 +47,17 @@ export function ContractSheet({
   const router = useRouter();
   const [pending, start] = useTransition();
 
-  const [tenantName, setTenantName] = useState(contract.tenant_name);
-  const [phone, setPhone] = useState(contract.phone ?? "");
-  const [occupants, setOccupants] = useState<number | "">(contract.occupants);
+  const [occupants, setOccupants] = useState<ContractOccupant[]>(
+    contract.occupants,
+  );
   const [rent, setRent] = useState<number | "">(contract.rent);
   const [endDate, setEndDate] = useState(contract.end_date ?? "");
 
   function save() {
-    if (!tenantName.trim()) {
-      toast.error("Chưa nhập tên khách");
+    // BR-P17 · AC-24.4
+    const issues = validateOccupants(occupants);
+    if (issues.length > 0) {
+      toast.error(issues[0].message);
       return;
     }
     if (endDate && endDate <= contract.start_date) {
@@ -67,9 +68,11 @@ export function ContractSheet({
     start(async () => {
       const res = await updateContract({
         contract_id: contract.id,
-        tenant_name: tenantName,
-        phone,
-        occupants: occupants === "" ? 1 : Number(occupants),
+        occupants: occupants.map((o) => ({
+          full_name: o.full_name,
+          phone: o.phone ?? "",
+          is_primary: o.is_primary,
+        })),
         rent: rent === "" ? 0 : Number(rent),
         end_date: endDate || null,
       });
@@ -101,32 +104,13 @@ export function ContractSheet({
         <div className="grid gap-4 px-4 pb-4">
           <section className="grid gap-3">
             <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-              Thông tin khách
+              Người ở
             </p>
-            <TextField
-              id="ct-name"
-              label="Tên khách"
-              value={tenantName}
-              onChange={setTenantName}
-              required
+            <OccupantsEditor
+              occupants={occupants}
+              onChange={setOccupants}
+              idPrefix="ct-occ"
             />
-            <div className="grid grid-cols-2 gap-3">
-              <TextField
-                id="ct-phone"
-                type="tel"
-                label="Điện thoại"
-                value={phone}
-                onChange={setPhone}
-              />
-              <NumberField
-                id="ct-occupants"
-                label="Số người ở"
-                min={1}
-                step="1"
-                value={occupants}
-                onChange={setOccupants}
-              />
-            </div>
           </section>
 
           <section className="grid gap-3">
@@ -175,7 +159,7 @@ export function ContractSheet({
           <button
             type="button"
             onClick={save}
-            disabled={pending}
+            disabled={pending || validateOccupants(occupants).length > 0}
             className="bg-primary text-primary-foreground focus-visible:ring-ring h-12 w-full rounded-xl text-sm font-semibold focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-40"
           >
             {pending ? "Đang lưu…" : "Lưu hợp đồng"}

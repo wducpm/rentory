@@ -30,6 +30,13 @@ export default async function RoomHistoryPage({
   const [room, history] = await Promise.all([getRoom(id), getRoomHistory(id)]);
   if (!room) notFound();
 
+  // FR-207: phiếu thu gắn theo hóa đơn → tra ngược ra khách của hóa đơn đó
+  const contractOfInvoice = new Map(
+    history.invoices.map((i) => [i.id, i.contract_id]),
+  );
+  const tenantOfReceipt = (invoiceId: string) =>
+    history.tenantOf.get(contractOfInvoice.get(invoiceId) ?? "") ?? "—";
+
   const entries: Entry[] = [];
 
   for (const inv of history.invoices) {
@@ -52,6 +59,9 @@ export default async function RoomHistoryPage({
             </p>
             <p className="text-muted-foreground truncate text-[11px]">
               {INVOICE_TYPE_LABEL[inv.type]} ·{" "}
+              {history.tenantOf.get(inv.contract_id) ?? "—"}
+            </p>
+            <p className="text-muted-foreground truncate text-[11px]">
               {periodsLine(inv.utility_period, inv.service_period)}
             </p>
             <p className="text-muted-foreground text-[11px]">
@@ -86,6 +96,7 @@ export default async function RoomHistoryPage({
               ) : null}
             </p>
             <p className="text-muted-foreground truncate text-[11px]">
+              {tenantOfReceipt(r.invoice_id)} ·{" "}
               {(r.receipt_items ?? []).map((i) => FEE_LABEL[i.fee]).join(" · ")}
             </p>
           </div>

@@ -219,7 +219,6 @@ mốc: 4000/100 (đã thu dịch vụ T9 ở HĐ 31/8)
 ## 5. Schema (migration `0001_init.sql`)
 
 ```sql
-create type room_status  as enum ('occupied','vacant','maintenance');
 create type invoice_type as enum ('move_in','periodic','move_out');
 create type fee_type     as enum ('rent','elec','water','internet','common','deposit','deposit_refund');
 create type mark_source  as enum ('invoice_move_in','invoice_periodic','invoice_move_out','manual');
@@ -247,8 +246,6 @@ create table rooms (
   building_id uuid not null references buildings(id) on delete cascade,
   code text not null,                              -- '201'
   floor int,
-  base_rent int not null default 0,
-  status room_status not null default 'vacant',
   current_elec  numeric not null default 0,        -- N1: mốc hiện tại
   current_water numeric not null default 0,
   archived boolean not null default false,
@@ -259,9 +256,6 @@ create table rooms (
 create table contracts (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references rooms(id) on delete cascade,
-  tenant_name text not null,
-  phone text,
-  occupants int not null default 1 check (occupants >= 1),
   start_date date not null,
   end_date date,
   deposit int not null,                            -- bắt buộc khai báo khi nhận phòng
@@ -271,6 +265,17 @@ create table contracts (
   updated_at timestamptz not null default now()
 );
 create unique index one_active_contract_per_room on contracts (room_id) where active;
+
+-- BR-P13: danh sách đầy đủ người ở; số người = đếm số dòng (BR-P15)
+create table contract_occupants (
+  id uuid primary key default gen_random_uuid(),
+  contract_id uuid not null references contracts(id) on delete cascade,
+  full_name text not null,
+  phone text,                                      -- bắt buộc với người đại diện
+  is_primary boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create unique index one_primary_per_contract on contract_occupants (contract_id) where is_primary;
 
 create table invoices (
   id uuid primary key default gen_random_uuid(),
@@ -349,6 +354,8 @@ create policy own_building on buildings for all using (admin_id = auth.uid());
 --   qua invoice     → dẫn tiếp qua invoices.building_id
 ```
 
+**Trạng thái phòng** không lưu thành cột — **suy ra từ hợp đồng**: có hợp đồng `active` → Đang thuê; không có → Trống. Chỉ 2 trạng thái, không có Bảo trì.
+
 **Seed:** tạo building `190nguyentrai` / "190 Nguyễn Trãi", `building_settings` với 4 giá mặc định ở trên, tài khoản admin. Danh sách phòng do người dùng cung cấp — hỏi trước khi seed, đừng bịa.
 
 ---
@@ -357,10 +364,12 @@ create policy own_building on buildings for all using (admin_id = auth.uid());
 
 ```ts
 // defaults.ts
-moveInDefaults(contract, settings, marks)   // HD-01: elec=water=0, +deposit
-periodicDefaults(contract, settings, room, endReadings)  // HD-02
-moveOutDefaults(contract, settings, room, endReadings)   // HD-03: dịch vụ=0, +deposit_refund
+// occupants = ContractOccupant[]; số người ở = occupants.length (không có cột lưu sẵn)
+moveInDefaults(contract, occupants, settings, marks)              // HD-01: elec=water=0, +deposit
+periodicDefaults(contract, occupants, settings, room, endReadings) // HD-02
+moveOutDefaults(contract, settings, room, endReadings)             // HD-03: dịch vụ=0, +deposit_refund
 consumption(start, end): number             // max(0, end-start)
+primaryOccupant(occupants): ContractOccupant // tên hiển thị trên hóa đơn
 
 // code.ts
 buildInvoiceCode(roomCode, type, utilityPeriod, servicePeriod, seq?): string  // 4.4, mã lưu
@@ -387,6 +396,7 @@ isLatestInvoice(invoice, room): boolean           // HD-08a
 - HD-08a: sửa hóa đơn cũ **không** đổi mốc; sửa hóa đơn mới nhất **có** đổi.
 - TT-03: 2 bản ghi cùng khoản → lấy bản mới nhất, không cộng dồn.
 - N7: sửa tiền điện lệch khỏi chỉ số → lưu được, chỉ số không đổi.
+- Dịch vụ chung = `common_fee × occupants.length`; thêm/bớt người → hóa đơn lập sau đổi theo, hóa đơn cũ giữ nguyên.
 
 ---
 
@@ -395,12 +405,12 @@ isLatestInvoice(invoice, room): boolean           // HD-08a
 | ID | Màn | Nội dung |
 |---|---|---|
 | **S-01** | Đăng nhập | Supabase Auth email + password, 1 admin |
-| **S-02** | Danh sách phòng | Trạng thái phòng, khách hiện tại, hóa đơn chưa thu, mốc hiện tại |
-| **S-03** | Chi tiết phòng | Thông tin hợp đồng · danh sách hóa đơn của phòng · CTA Nhận/Trả phòng · Ghi chỉ số |
+| **S-02** | Danh sách phòng | Trạng thái phòng (**suy từ hợp đồng**, chỉ Đang thuê / Trống), tên người đại diện, hóa đơn chưa thu, mốc hiện tại |
+| **S-03** | Chi tiết phòng | Thông tin hợp đồng · **danh sách người ở** (tên + SĐT, đánh dấu người đại diện) · danh sách hóa đơn · CTA Nhận/Trả phòng · Ghi chỉ số |
 | **S-04** | Chi tiết hóa đơn | Mã hiển thị + hai kỳ (HD-13) · chỉ số đầu–cuối · các dòng tiền (sửa được) · tổng · trạng thái thu · **CTA Thu tiền** (HD-14) |
 | **S-05** | Sheet Thu tiền | Ngày thu · tick khoản · **ô số tiền mỗi khoản sửa được** (TT-01) |
 | **S-06** | Nhập chỉ số / Chốt kỳ | Lưới toàn bộ phòng đang thuê: mốc hiện tại (chỉ đọc) + ô nhập số chốt → tính real-time → tạo HĐ định kỳ hàng loạt. Kèm chức năng **sửa mốc thủ công** (HD-11) có ghi chú lý do |
-| **S-07** | Nhận phòng | Tạo hợp đồng (cọc bắt buộc) + số chốt bàn giao → sinh HĐ nhận phòng |
+| **S-07** | Nhận phòng | Tạo hợp đồng (cọc bắt buộc) + **nhập số người → sinh đúng số dòng tên + SĐT**, người đầu tiên mặc định là đại diện + số chốt bàn giao → sinh HĐ nhận phòng. Họ tên bắt buộc mọi người; SĐT bắt buộc riêng người đại diện |
 | **S-08** | Trả phòng | Số chốt + bill tất toán sửa từng dòng + hoàn cọc → đóng HĐ, phòng về Trống |
 | **S-09** | Lịch sử phòng | Timeline gộp: hóa đơn · phiếu thu · lần ghi đè mốc. Mở lại hóa đơn cũ để xem/sửa/thu tiếp (HD-14) |
 | **S-10** | Cài đặt tòa | 4 đơn giá · quản lý phòng (thêm/sửa/archive) |

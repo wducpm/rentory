@@ -4,7 +4,7 @@ import { FileDown } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { InvoiceDetail } from "@/components/invoice/invoice-detail";
 import { getInvoice } from "@/lib/data";
-import { displayInvoiceCode } from "@/lib/billing";
+import { displayInvoiceCode, primaryName } from "@/lib/billing";
 import { INVOICE_TYPE_LABEL } from "@/lib/labels";
 import type { FeeType } from "@/lib/billing";
 
@@ -57,7 +57,7 @@ export default async function InvoicePage({
             unpaid: invoice.unpaid,
           }}
           roomCode={room.code}
-          tenantName={contract?.tenant_name ?? null}
+          tenantName={contract ? primaryName(contract.occupants) : null}
           ownsMark={
             Number(room.current_elec) === Number(invoice.elec_end) &&
             Number(room.current_water) === Number(invoice.water_end)

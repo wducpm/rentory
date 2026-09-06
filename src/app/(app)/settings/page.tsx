@@ -45,13 +45,16 @@ export default async function SettingsPage() {
         <section id="rooms" className="scroll-mt-20">
           <SectionHeader title={`Phòng (${rooms.length})`} />
           <RoomsManager
-            rooms={rooms.map(({ room }) => ({
+            rooms={rooms.map(({ room, status, contract, invoiceCount }) => ({
               id: room.id,
               code: room.code,
               floor: room.floor,
-              base_rent: room.base_rent,
-              status: room.status,
+              status,
               archived: room.archived,
+              // FR-006 · BR-S05: giá thuê chỉ đọc, lấy từ hợp đồng hiệu lực
+              rent: contract?.rent ?? null,
+              // CR-04 · BR-S10: có hóa đơn thì khóa ô tên phòng
+              hasInvoices: invoiceCount > 0,
             }))}
           />
         </section>

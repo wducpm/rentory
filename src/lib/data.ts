@@ -5,10 +5,14 @@ import {
   sortForMeterReading,
   invoiceStatusFromRows,
   paidTotalFromRows,
+  primaryName,
+  roomStatus,
   unpaidFeesFromRows,
+  type ContractOccupant,
   type FeeType,
   type InvoiceItem,
   type InvoiceType,
+  type RoomStatus,
 } from "@/lib/billing";
 import type { Database } from "@/types/database";
 
@@ -18,6 +22,12 @@ export type ContractRow = T["contracts"]["Row"];
 export type InvoiceRow = T["invoices"]["Row"];
 export type SettingsRow = T["building_settings"]["Row"];
 export type MarkLogRow = T["meter_mark_logs"]["Row"];
+export type OccupantRow = T["contract_occupants"]["Row"];
+
+/** CR-02: hợp đồng luôn đi kèm danh sách người ở (số người = số dòng). */
+export type ContractWithOccupants = ContractRow & {
+  occupants: ContractOccupant[];
+};
 
 export type RecognizedRow = {
   invoice_id: string;
@@ -77,7 +87,11 @@ function decorate(
 
 export type RoomSummary = {
   room: RoomRow;
-  contract: ContractRow | null;
+  /** CR-01 · BR-P04: suy từ hợp đồng, không đọc cột. */
+  status: RoomStatus;
+  contract: ContractWithOccupants | null;
+  /** BR-P14: tên hiển thị lấy từ người đại diện. */
+  tenantName: string | null;
   invoiceCount: number;
   dueCount: number;
   dueAmount: number;
@@ -113,13 +127,26 @@ export async function listRooms(): Promise<{
     decorate(inv, itemsByInvoice.get(inv.id) ?? [], recognized),
   );
 
-  const rooms = (roomsRes.data ?? []).map((room) => {
+  const contracts = contractsRes.data ?? [];
+  const occupantsByContract = await fetchOccupants(
+    supabase,
+    contracts.map((c) => c.id),
+  );
+
+  const rooms: RoomSummary[] = (roomsRes.data ?? []).map((room) => {
     const mine = decorated.filter((i) => i.room_id === room.id);
     const due = mine.filter((i) => i.status === "due");
+    const contract = contracts.find((c) => c.room_id === room.id) ?? null;
+    const occupants = contract
+      ? (occupantsByContract.get(contract.id) ?? [])
+      : [];
+
     return {
       room,
-      contract:
-        (contractsRes.data ?? []).find((c) => c.room_id === room.id) ?? null,
+      // CR-01: trạng thái suy từ hợp đồng hiệu lực
+      status: roomStatus(contract !== null),
+      contract: contract ? { ...contract, occupants } : null,
+      tenantName: contract ? primaryName(occupants) : null,
       invoiceCount: mine.length,
       dueCount: due.length,
       dueAmount: due.reduce((s, i) => s + (i.total - i.paid), 0),
@@ -127,6 +154,64 @@ export async function listRooms(): Promise<{
   });
 
   return { building, rooms };
+}
+
+/**
+ * FR-209 · BR-P18 — gợi ý giá thuê khi nhận phòng: lấy giá của hợp đồng gần
+ * nhất của phòng, kể cả hợp đồng đã đóng. Phòng chưa từng có hợp đồng → null,
+ * admin nhập tay (AC-21.10).
+ */
+export async function suggestedRent(roomId: string): Promise<number | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("contracts")
+    .select("rent")
+    .eq("room_id", roomId)
+    .order("start_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.rent ?? null;
+}
+
+/** CR-04 · BR-P12 — phòng đã phát sinh hóa đơn thì không đổi tên được. */
+export async function roomHasInvoices(roomId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("invoices")
+    .select("id", { count: "exact", head: true })
+    .eq("room_id", roomId);
+  return (count ?? 0) > 0;
+}
+
+/** Gom người ở theo hợp đồng; giữ người đại diện lên đầu cho dễ đọc. */
+function groupOccupants(rows: OccupantRow[]): Map<string, ContractOccupant[]> {
+  const map = new Map<string, ContractOccupant[]>();
+  for (const r of rows) {
+    const list = map.get(r.contract_id) ?? [];
+    list.push({
+      id: r.id,
+      full_name: r.full_name,
+      phone: r.phone,
+      is_primary: r.is_primary,
+    });
+    map.set(r.contract_id, list);
+  }
+  for (const list of map.values())
+    list.sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
+  return map;
+}
+
+async function fetchOccupants(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  contractIds: string[],
+): Promise<Map<string, ContractOccupant[]>> {
+  if (contractIds.length === 0) return new Map();
+  const { data } = await supabase
+    .from("contract_occupants")
+    .select("*")
+    .in("contract_id", contractIds);
+  return groupOccupants(data ?? []);
 }
 
 function groupItems(
@@ -181,12 +266,25 @@ export async function getRoom(roomId: string) {
   const itemsByInvoice = groupItems(itemsRes.data ?? []);
   const recognized = (recognizedRes.data ?? []) as RecognizedRow[];
 
+  const contracts = contractsRes.data ?? [];
+  const occupantsByContract = await fetchOccupants(
+    supabase,
+    contracts.map((c) => c.id),
+  );
+  const withOccupants: ContractWithOccupants[] = contracts.map((c) => ({
+    ...c,
+    occupants: occupantsByContract.get(c.id) ?? [],
+  }));
+  const activeContract = withOccupants.find((c) => c.active) ?? null;
+
   return {
     building,
     settings: settingsRes.data ?? null,
     room: roomRes.data,
-    contracts: contractsRes.data ?? [],
-    activeContract: (contractsRes.data ?? []).find((c) => c.active) ?? null,
+    contracts: withOccupants,
+    activeContract,
+    // CR-01: trạng thái suy từ hợp đồng
+    status: roomStatus(activeContract !== null),
     invoices: (invoicesRes.data ?? []).map((inv) =>
       decorate(inv, itemsByInvoice.get(inv.id) ?? [], recognized),
     ),
@@ -230,11 +328,19 @@ export async function getInvoice(invoiceId: string) {
   const items = groupItems(itemsRes.data ?? []).get(invoiceId) ?? [];
   const recognized = (recognizedRes.data ?? []) as RecognizedRow[];
 
+  const occupants = contractRes.data
+    ? ((await fetchOccupants(supabase, [contractRes.data.id])).get(
+        contractRes.data.id,
+      ) ?? [])
+    : [];
+
   return {
     invoice: decorate(invoice, items, recognized),
     recognized,
     room: roomRes.data,
-    contract: contractRes.data,
+    contract: contractRes.data
+      ? { ...contractRes.data, occupants }
+      : null,
     receipts: receiptsRes.data ?? [],
     settings: settingsRes.data ?? null,
   };
@@ -281,6 +387,7 @@ export async function listMeterRows() {
   );
 
   const contractIds = occupied.map((r) => r.contract!.id);
+  const occupantsByContract = await fetchOccupants(supabase, contractIds);
   const invoicesRes = contractIds.length
     ? await supabase
         .from("invoices")
@@ -305,7 +412,13 @@ export async function listMeterRows() {
   return {
     building,
     settings: settingsRes.data,
-    rooms: occupied,
+    rooms: occupied.map((r) => ({
+      ...r,
+      contract: {
+        ...r.contract!,
+        occupants: occupantsByContract.get(r.contract!.id) ?? [],
+      },
+    })),
     periodicInvoices: invoices.map((inv) => ({
       ...inv,
       items: itemsByInvoice.get(inv.id) ?? [],
@@ -317,7 +430,7 @@ export async function listMeterRows() {
 export async function getRoomHistory(roomId: string) {
   const supabase = await createClient();
 
-  const [invoicesRes, marksRes] = await Promise.all([
+  const [invoicesRes, marksRes, contractsRes] = await Promise.all([
     supabase
       .from("invoices")
       .select("*")
@@ -329,6 +442,7 @@ export async function getRoomHistory(roomId: string) {
       .eq("room_id", roomId)
       .order("effective_date", { ascending: false })
       .order("created_at", { ascending: false }),
+    supabase.from("contracts").select("*").eq("room_id", roomId),
   ]);
 
   const invoiceIds = (invoicesRes.data ?? []).map((i) => i.id);
@@ -340,10 +454,24 @@ export async function getRoomHistory(roomId: string) {
         .order("receipt_date", { ascending: false })
     : { data: [] };
 
+  // FR-207: mỗi mục ghi rõ thuộc về khách nào (BR-P14: tên người đại diện)
+  const contracts = contractsRes.data ?? [];
+  const occupantsByContract = await fetchOccupants(
+    supabase,
+    contracts.map((c) => c.id),
+  );
+  const tenantOf = new Map(
+    contracts.map((c) => [
+      c.id,
+      primaryName(occupantsByContract.get(c.id) ?? []),
+    ]),
+  );
+
   return {
     invoices: invoicesRes.data ?? [],
     marks: marksRes.data ?? [],
     receipts: receiptsRes.data ?? [],
+    tenantOf,
   };
 }
 
@@ -396,6 +524,10 @@ export async function getDashboard(): Promise<DashboardData> {
 
   const rooms = roomsRes.data ?? [];
   const contracts = contractsRes.data ?? [];
+  const occupantsByContract = await fetchOccupants(
+    supabase,
+    contracts.map((c) => c.id),
+  );
   const itemsByInvoice = groupItems(itemsRes.data ?? []);
   const recognized = (recognizedRes.data ?? []) as RecognizedRow[];
 
@@ -415,25 +547,29 @@ export async function getDashboard(): Promise<DashboardData> {
       return {
         ...i,
         roomCode: room?.code ?? "?",
-        tenantName: contract?.tenant_name ?? null,
+        tenantName: contract
+          ? primaryName(occupantsByContract.get(contract.id) ?? [])
+          : null,
       };
     });
 
-  const occupied = rooms.filter((r) => r.status === "occupied").length;
+  // CR-01: đếm theo hợp đồng hiệu lực, không đọc cột status
+  const occupiedIds = new Set(contracts.map((c) => c.room_id));
+  const occupied = rooms.filter((r) => occupiedIds.has(r.id)).length;
 
   // Phòng đang thuê mà kỳ này chưa có hóa đơn định kỳ → còn phải chốt số
   const closedThisPeriod = new Set(
     inPeriod.filter((i) => i.type === "periodic").map((i) => i.room_id),
   );
   const unreadMeters = rooms.filter(
-    (r) => r.status === "occupied" && !closedThisPeriod.has(r.id),
+    (r) => occupiedIds.has(r.id) && !closedThisPeriod.has(r.id),
   ).length;
 
   return {
     building,
     totalRooms: rooms.length,
     occupiedRooms: occupied,
-    vacantRooms: rooms.filter((r) => r.status === "vacant").length,
+    vacantRooms: rooms.filter((r) => !occupiedIds.has(r.id)).length,
     period,
     periodInvoices: inPeriod.length,
     periodPaid: inPeriod.filter((i) => i.status === "paid").length,

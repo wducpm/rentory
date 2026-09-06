@@ -7,7 +7,7 @@ import {
   moveOutDefaults,
   periodicDefaults,
 } from "../index";
-import { amountOf, contract, room, settings } from "./fixtures";
+import { amountOf, contract, occupants, room, settings } from "./fixtures";
 
 /** 4.7 — ba kịch bản kiểm chứng, chạy tuần tự đúng như tài liệu mô tả. */
 
@@ -15,7 +15,7 @@ describe("Kịch bản 1 — khách mới nhận phòng giữa kỳ", () => {
   it("20/8 nhận phòng chốt 4184/106 → HĐ-P201-DV/T8.25, mốc ← 4184/106", () => {
     let r = room(4000, 100);
 
-    const moveIn = moveInDefaults(contract, settings, { elec: 4184, water: 106 }, "2025-08-20");
+    const moveIn = moveInDefaults(contract, occupants, settings, { elec: 4184, water: 106 }, "2025-08-20");
     expect(buildInvoiceCode(r.code, moveIn.type, moveIn.utility_period, moveIn.service_period)).toBe(
       "HĐ-P201-DV/T8.25",
     );
@@ -27,7 +27,7 @@ describe("Kịch bản 1 — khách mới nhận phòng giữa kỳ", () => {
     expect([r.current_elec, r.current_water]).toEqual([4184, 106]);
 
     // 31/8 chốt kỳ, số 4300/112
-    const periodic = periodicDefaults(contract, settings, r, { elec: 4300, water: 112 }, "2025-08-31");
+    const periodic = periodicDefaults(contract, occupants, settings, r, { elec: 4300, water: 112 }, "2025-08-31");
     expect(
       buildInvoiceCode(r.code, periodic.type, periodic.utility_period, periodic.service_period),
     ).toBe("HĐ-P201-ĐN/T8.25-DV/T9.25");
@@ -55,7 +55,7 @@ describe("Kịch bản 2 — thay công tơ giữa kỳ, thu bù kỳ sau", () =
     expect(manual.log.source).toBe("manual");
 
     // 31/8 chốt kỳ, số 60
-    const periodic = periodicDefaults(contract, settings, r, { elec: 60, water: 0 }, "2025-08-31");
+    const periodic = periodicDefaults(contract, occupants, settings, r, { elec: 60, water: 0 }, "2025-08-31");
     expect(periodic.elec_start).toBe(0);
     expect(periodic.elec_end).toBe(60);
     expect(amountOf(periodic.items, "elec")).toBe(60 * 3800);
@@ -77,7 +77,7 @@ describe("Kịch bản 3 — khách trả phòng", () => {
   it("mốc 4000/100, trả 20/9 chốt 4180/106 → HĐ-P201-ĐN/T9.25, dịch vụ 0", () => {
     let r = room(4000, 100);
 
-    const out = moveOutDefaults(contract, settings, r, { elec: 4180, water: 106 }, "2025-09-20");
+    const out = moveOutDefaults(contract, occupants, settings, r, { elec: 4180, water: 106 }, "2025-09-20");
     expect(buildInvoiceCode(r.code, out.type, out.utility_period, out.service_period)).toBe(
       "HĐ-P201-ĐN/T9.25",
     );
@@ -105,7 +105,7 @@ describe("HD-05 — tiêu thụ ngoài hóa đơn (phòng trống) không hiện
 
     expect(r.current_elec).toBe(4210);
 
-    const nextIn = moveInDefaults(contract, settings, { elec: 4210, water: 108 }, "2025-10-01");
+    const nextIn = moveInDefaults(contract, occupants, settings, { elec: 4210, water: 108 }, "2025-10-01");
     expect(nextIn.elec_start).toBe(4210);
     expect(amountOf(nextIn.items, "elec")).toBe(0);
   });

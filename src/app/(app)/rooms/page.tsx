@@ -11,7 +11,6 @@ import { ROOM_STATUS_LABEL } from "@/lib/labels";
 const STATUS_TONE: Record<keyof typeof ROOM_STATUS_LABEL, Tone> = {
   occupied: "success",
   vacant: "neutral",
-  maintenance: "warning",
 };
 
 /** S-02 — danh sách phòng. */
@@ -75,26 +74,26 @@ export default async function RoomsPage({
           />
         ) : (
           <ul className="grid gap-2 md:grid-cols-2">
-            {rooms.map(({ room, contract, invoiceCount, dueCount, dueAmount }) => (
+            {rooms.map(({ room, status, contract, tenantName, invoiceCount, dueCount, dueAmount }) => (
               <li key={room.id}>
                 <Link
                   href={`/rooms/${room.id}`}
                   className="bg-card border-border focus-visible:ring-ring active:bg-accent/40 flex items-center gap-3 rounded-2xl border p-3 transition-colors focus-visible:ring-2 focus-visible:outline-none"
                 >
-                  <IconTile tone={STATUS_TONE[room.status]}>
+                  <IconTile tone={STATUS_TONE[status]}>
                     <Building2 />
                   </IconTile>
 
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 text-sm font-semibold">
                       <span>P.{room.code}</span>
-                      <Pill tone={STATUS_TONE[room.status]}>
-                        {ROOM_STATUS_LABEL[room.status]}
+                      <Pill tone={STATUS_TONE[status]}>
+                        {ROOM_STATUS_LABEL[status]}
                       </Pill>
                     </p>
                     <p className="text-muted-foreground mt-0.5 truncate text-xs">
                       {contract
-                        ? `${contract.tenant_name} · ${contract.occupants} người`
+                        ? `${tenantName} · ${contract.occupants.length} người`
                         : "Chưa có khách"}
                     </p>
                     <p className="text-muted-foreground mt-0.5 text-[11px]">

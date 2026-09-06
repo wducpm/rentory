@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui-kit";
 import { MetersGrid } from "@/components/meters/meters-grid";
 import { listMeterRows, NoBuildingError } from "@/lib/data";
 import { currentBuildingSlug } from "@/lib/building";
+import { primaryName } from "@/lib/billing";
 
 /** S-06 — nhập chỉ số / lập hóa đơn định kỳ + sửa mốc thủ công (HD-11). */
 export default async function MetersPage() {
@@ -45,12 +46,12 @@ export default async function MetersPage() {
               currentElec: Number(room.current_elec),
               currentWater: Number(room.current_water),
               contract: {
-                id: contract!.id,
-                tenant_name: contract!.tenant_name,
-                occupants: contract!.occupants,
-                rent: contract!.rent,
-                deposit: contract!.deposit,
+                id: contract.id,
+                rent: contract.rent,
+                deposit: contract.deposit,
               },
+              occupants: contract.occupants,
+              tenantName: primaryName(contract.occupants),
             }))}
             invoices={data.periodicInvoices.map((inv) => ({
               id: inv.id,

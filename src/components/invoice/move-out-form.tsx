@@ -15,6 +15,7 @@ import {
   displayInvoiceCode,
   moveOutDefaults,
   type BuildingSettings,
+  type ContractOccupant,
   type InvoiceItem,
 } from "@/lib/billing";
 import { periodsLine, todayIso } from "@/lib/labels";
@@ -22,16 +23,14 @@ import { periodsLine, todayIso } from "@/lib/labels";
 export function MoveOutForm({
   room,
   contract,
+  occupants,
+  tenantName,
   settings,
 }: {
   room: { id: string; code: string; current_elec: number; current_water: number };
-  contract: {
-    id: string;
-    tenant_name: string;
-    occupants: number;
-    rent: number;
-    deposit: number;
-  };
+  contract: { id: string; rent: number; deposit: number };
+  occupants: ContractOccupant[];
+  tenantName: string;
   settings: BuildingSettings;
 }) {
   const router = useRouter();
@@ -46,6 +45,7 @@ export function MoveOutForm({
     () =>
       moveOutDefaults(
         contract,
+        occupants,
         settings,
         {
           code: room.code,
@@ -58,7 +58,7 @@ export function MoveOutForm({
         },
         issueDate,
       ),
-    [contract, settings, room, elec, water, issueDate],
+    [contract, occupants, settings, room, elec, water, issueDate],
   );
 
   const effectiveItems = items ?? draft.items;
@@ -106,9 +106,9 @@ export function MoveOutForm({
   return (
     <div className="space-y-5 pb-32">
       <section className="bg-card border-border rounded-2xl border p-4">
-        <p className="text-sm font-semibold">{contract.tenant_name}</p>
+        <p className="text-sm font-semibold">{tenantName}</p>
         <p className="text-muted-foreground mt-0.5 text-xs">
-          Cọc đã nhận <Money value={contract.deposit} /> · {contract.occupants}{" "}
+          Cọc đã nhận <Money value={contract.deposit} /> · {occupants.length}{" "}
           người
         </p>
       </section>

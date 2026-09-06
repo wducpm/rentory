@@ -5,5 +5,6 @@ export * from "./code";
 export * from "./defaults";
 export * from "./recognized";
 export * from "./marks";
+export * from "./occupants";
 export * from "./meter";
 export * from "./print";

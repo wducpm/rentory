@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildPrintModel, formatPrintAmount } from "../print";
 import { moveInDefaults, moveOutDefaults, periodicDefaults } from "../defaults";
-import { contract, room, settings } from "./fixtures";
+import { contract, occupants, room, settings } from "./fixtures";
 import type { InvoiceItem } from "../types";
 
 const base = {
@@ -97,7 +97,7 @@ describe("US-14 — hóa đơn định kỳ theo mẫu", () => {
 
 describe("Mục 7 — ba loại dùng chung mẫu, khác ở dòng bổ sung", () => {
   it("nhận phòng: điện nước 0, chỉ số đầu = cuối, thêm dòng CỌC", () => {
-    const d = moveInDefaults(contract, settings, { elec: 4184, water: 106 }, "2025-08-20");
+    const d = moveInDefaults(contract, occupants, settings, { elec: 4184, water: 106 }, "2025-08-20");
     const m = buildPrintModel({
       ...base, type: d.type, code: "HĐ-P201-DV/T8.25",
       utility_period: d.utility_period, service_period: d.service_period,
@@ -114,7 +114,7 @@ describe("Mục 7 — ba loại dùng chung mẫu, khác ở dòng bổ sung", (
   });
 
   it("trả phòng: thêm dòng HOÀN CỌC âm, tiêu đề theo kỳ điện nước", () => {
-    const d = moveOutDefaults(contract, settings, room(4000, 100), { elec: 4180, water: 106 }, "2025-09-20");
+    const d = moveOutDefaults(contract, occupants, settings, room(4000, 100), { elec: 4180, water: 106 }, "2025-09-20");
     const m = buildPrintModel({
       ...base, type: d.type, code: "HĐ-P201-ĐN/T9.25",
       utility_period: d.utility_period, service_period: d.service_period,
@@ -132,7 +132,7 @@ describe("Mục 7 — ba loại dùng chung mẫu, khác ở dòng bổ sung", (
 
 describe("N7 — bản in lấy số đã snapshot, không tính lại từ chỉ số", () => {
   it("HD-12 thu bù: tiền điện cao hơn tiêu thụ, bản in giữ nguyên cả hai", () => {
-    const d = periodicDefaults(contract, settings, room(0, 0), { elec: 60, water: 0 }, "2025-08-31");
+    const d = periodicDefaults(contract, occupants, settings, room(0, 0), { elec: 60, water: 0 }, "2025-08-31");
     // admin cộng bù đoạn công tơ cũ vào tiền điện
     const items = d.items.map((i) =>
       i.fee === "elec" ? { ...i, amount: 100 * 3800 } : i,

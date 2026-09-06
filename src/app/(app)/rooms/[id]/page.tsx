@@ -25,13 +25,14 @@ export default async function RoomPage({
   const data = await getRoom(id);
   if (!data) notFound();
 
-  const { room, activeContract, invoices } = data;
-  const occupied = room.status === "occupied" && activeContract;
+  const { room, status, activeContract, invoices } = data;
+  // CR-01 · BR-P04: trạng thái suy từ hợp đồng
+  const occupied = status === "occupied" && activeContract;
 
   return (
     <>
       <AppHeader
-        eyebrow={ROOM_STATUS_LABEL[room.status]}
+        eyebrow={ROOM_STATUS_LABEL[status]}
         title={`Phòng ${room.code}`}
         backHref="/rooms"
         actions={
@@ -73,8 +74,6 @@ export default async function RoomPage({
             <ContractCard
               contract={{
                 id: activeContract.id,
-                tenant_name: activeContract.tenant_name,
-                phone: activeContract.phone,
                 occupants: activeContract.occupants,
                 rent: activeContract.rent,
                 deposit: activeContract.deposit,

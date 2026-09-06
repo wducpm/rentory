@@ -2,10 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, ArchiveRestore, Pencil, Plus, X } from "lucide-react";
+import { Archive, Lock, Pencil, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { NumberField } from "@/components/forms/number-field";
-import { TextField } from "@/components/forms/text-field";
 import { Money, Pill } from "@/components/ui-kit";
 import { archiveRoom, createRoom, updateRoom } from "@/lib/actions";
 import { ROOM_STATUS_LABEL } from "@/lib/labels";
@@ -14,14 +13,17 @@ type Room = {
   id: string;
   code: string;
   floor: number | null;
-  base_rent: number;
   status: keyof typeof ROOM_STATUS_LABEL;
   archived: boolean;
+  /** FR-006: giá của hợp đồng hiệu lực; phòng trống → null. */
+  rent: number | null;
+  /** CR-04 · BR-S10: đã có hóa đơn thì không đổi được tên. */
+  hasInvoices: boolean;
 };
 
-type Draft = { code: string; floor: number | ""; base_rent: number | "" };
+type Draft = { code: string; floor: number | "" };
 
-const EMPTY: Draft = { code: "", floor: "", base_rent: "" };
+const EMPTY: Draft = { code: "", floor: "" };
 
 export function RoomsManager({ rooms }: { rooms: Room[] }) {
   const router = useRouter();
@@ -35,7 +37,6 @@ export function RoomsManager({ rooms }: { rooms: Room[] }) {
       const payload = {
         code: draft.code,
         floor: draft.floor === "" ? null : Number(draft.floor),
-        base_rent: draft.base_rent === "" ? 0 : Number(draft.base_rent),
       };
       const res = editingId
         ? await updateRoom(editingId, payload)
@@ -53,11 +54,19 @@ export function RoomsManager({ rooms }: { rooms: Room[] }) {
     });
   }
 
-  function toggleArchive(room: Room) {
+  // CR-07: archive là một chiều, v1 không có khôi phục
+  function archive(room: Room) {
+    if (
+      !window.confirm(
+        `Lưu trữ phòng ${room.code}? Lịch sử hóa đơn vẫn tra cứu được, nhưng bản v1 chưa có chức năng khôi phục.`,
+      )
+    )
+      return;
+
     start(async () => {
-      const res = await archiveRoom(room.id, !room.archived);
+      const res = await archiveRoom(room.id);
       if (res.ok) {
-        toast.success(room.archived ? "Đã khôi phục phòng" : "Đã lưu trữ phòng");
+        toast.success(`Đã lưu trữ phòng ${room.code}`);
         router.refresh();
       } else {
         toast.error(res.error);
@@ -90,13 +99,27 @@ export function RoomsManager({ rooms }: { rooms: Room[] }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <TextField
-              id="room-code"
-              label="Số phòng"
-              value={draft.code}
-              onChange={(x) => setDraft({ ...draft, code: x })}
-              placeholder="201"
-            />
+            <div className="grid gap-1.5">
+              <label htmlFor="room-code" className="text-xs font-medium">
+                Số phòng
+              </label>
+              <div className="flex items-center gap-2">
+                {/* BR-S02: tiền tố P do hệ thống gắn, admin chỉ gõ phần số */}
+                <span className="text-muted-foreground text-sm font-semibold">
+                  P
+                </span>
+                <input
+                  id="room-code"
+                  inputMode="numeric"
+                  value={draft.code}
+                  onChange={(e) =>
+                    setDraft({ ...draft, code: e.target.value.replace(/\D/g, "") })
+                  }
+                  placeholder="201"
+                  className="border-input bg-card focus-visible:ring-ring h-11 w-full rounded-xl border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                />
+              </div>
+            </div>
             <NumberField
               id="room-floor"
               label="Tầng"
@@ -104,13 +127,10 @@ export function RoomsManager({ rooms }: { rooms: Room[] }) {
               onChange={(x) => setDraft({ ...draft, floor: x })}
             />
           </div>
-          <NumberField
-            id="room-rent"
-            label="Tiền phòng mặc định"
-            suffix="đ"
-            value={draft.base_rent}
-            onChange={(x) => setDraft({ ...draft, base_rent: x })}
-          />
+          <p className="text-muted-foreground text-[11px]">
+            Giá thuê không đặt ở đây — giá thuộc hợp đồng, nhập khi nhận phòng
+            (BR-S05).
+          </p>
 
           <button
             type="button"
@@ -150,43 +170,47 @@ export function RoomsManager({ rooms }: { rooms: Room[] }) {
               </p>
               <p className="text-muted-foreground mt-0.5 text-[11px]">
                 {room.floor !== null ? `Tầng ${room.floor} · ` : ""}
-                <Money value={room.base_rent} />/kỳ
+                {/* FR-006 · AC-06.1/06.2: chỉ đọc, phòng trống hiện gạch ngang */}
+                {room.rent === null ? "—" : <Money value={room.rent} />}
+                {room.rent === null ? "" : "/kỳ"}
               </p>
             </div>
 
             <button
               type="button"
-              aria-label={`Sửa phòng ${room.code}`}
+              aria-label={
+                room.hasInvoices
+                  ? `Phòng ${room.code} đã có hóa đơn, không đổi được tên`
+                  : `Sửa phòng ${room.code}`
+              }
+              disabled={room.hasInvoices}
+              title={
+                room.hasInvoices
+                  ? "Phòng đã có hóa đơn — mã hóa đơn đã lưu số phòng nên không đổi tên được (BR-S10)"
+                  : undefined
+              }
               onClick={() => {
                 setAdding(false);
                 setEditingId(room.id);
-                setDraft({
-                  code: room.code,
-                  floor: room.floor ?? "",
-                  base_rent: room.base_rent,
-                });
+                setDraft({ code: room.code, floor: room.floor ?? "" });
               }}
-              className="border-border focus-visible:ring-ring inline-flex size-11 shrink-0 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none"
+              className="border-border focus-visible:ring-ring inline-flex size-11 shrink-0 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none disabled:opacity-30"
             >
-              <Pencil className="size-4" aria-hidden />
+              {room.hasInvoices ? (
+                <Lock className="size-4" aria-hidden />
+              ) : (
+                <Pencil className="size-4" aria-hidden />
+              )}
             </button>
 
             <button
               type="button"
-              aria-label={
-                room.archived
-                  ? `Khôi phục phòng ${room.code}`
-                  : `Lưu trữ phòng ${room.code}`
-              }
-              disabled={pending || room.status === "occupied"}
-              onClick={() => toggleArchive(room)}
+              aria-label={`Lưu trữ phòng ${room.code}`}
+              disabled={pending || room.status === "occupied" || room.archived}
+              onClick={() => archive(room)}
               className="border-border focus-visible:ring-ring inline-flex size-11 shrink-0 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none disabled:opacity-30"
             >
-              {room.archived ? (
-                <ArchiveRestore className="size-4" aria-hidden />
-              ) : (
-                <Archive className="size-4" aria-hidden />
-              )}
+              <Archive className="size-4" aria-hidden />
             </button>
           </li>
         ))}

@@ -79,6 +79,41 @@ export type Database = {
         }
         Relationships: []
       }
+      contract_occupants: {
+        Row: {
+          contract_id: string
+          created_at: string
+          full_name: string
+          id: string
+          is_primary: boolean
+          phone: string | null
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          full_name: string
+          id?: string
+          is_primary?: boolean
+          phone?: string | null
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_primary?: boolean
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_occupants_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           active: boolean
@@ -86,12 +121,9 @@ export type Database = {
           deposit: number
           end_date: string | null
           id: string
-          occupants: number
-          phone: string | null
           rent: number
           room_id: string
           start_date: string
-          tenant_name: string
           updated_at: string
         }
         Insert: {
@@ -100,12 +132,9 @@ export type Database = {
           deposit: number
           end_date?: string | null
           id?: string
-          occupants?: number
-          phone?: string | null
           rent: number
           room_id: string
           start_date: string
-          tenant_name: string
           updated_at?: string
         }
         Update: {
@@ -114,12 +143,9 @@ export type Database = {
           deposit?: number
           end_date?: string | null
           id?: string
-          occupants?: number
-          phone?: string | null
           rent?: number
           room_id?: string
           start_date?: string
-          tenant_name?: string
           updated_at?: string
         }
         Relationships: [
@@ -371,7 +397,6 @@ export type Database = {
       rooms: {
         Row: {
           archived: boolean
-          base_rent: number
           building_id: string
           code: string
           created_at: string
@@ -379,11 +404,9 @@ export type Database = {
           current_water: number
           floor: number | null
           id: string
-          status: Database["public"]["Enums"]["room_status"]
         }
         Insert: {
           archived?: boolean
-          base_rent?: number
           building_id: string
           code: string
           created_at?: string
@@ -391,11 +414,9 @@ export type Database = {
           current_water?: number
           floor?: number | null
           id?: string
-          status?: Database["public"]["Enums"]["room_status"]
         }
         Update: {
           archived?: boolean
-          base_rent?: number
           building_id?: string
           code?: string
           created_at?: string
@@ -403,7 +424,6 @@ export type Database = {
           current_water?: number
           floor?: number | null
           id?: string
-          status?: Database["public"]["Enums"]["room_status"]
         }
         Relationships: [
           {
@@ -500,13 +520,11 @@ export type Database = {
               p_elec: number
               p_items: Json
               p_note?: string
-              p_occupants: number
-              p_phone: string
+          p_occupants: Json
               p_rent: number
               p_room_id: string
               p_service_period: string
               p_start_date: string
-              p_tenant_name: string
               p_water: number
             }
             Returns: string
@@ -520,13 +538,11 @@ export type Database = {
               p_end_date?: string
               p_items: Json
               p_note?: string
-              p_occupants: number
-              p_phone: string
+          p_occupants: Json
               p_rent: number
               p_room_id: string
               p_service_period: string
               p_start_date: string
-              p_tenant_name: string
               p_water: number
             }
             Returns: string
@@ -560,14 +576,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      replace_contract_occupants: {
+        Args: { p_contract_id: string; p_occupants: Json }
+        Returns: undefined
+      }
       update_contract: {
         Args: {
           p_contract_id: string
           p_end_date?: string
-          p_occupants: number
-          p_phone: string
+          p_occupants?: Json
           p_rent: number
-          p_tenant_name: string
         }
         Returns: undefined
       }
@@ -610,7 +628,6 @@ export type Database = {
         | "invoice_periodic"
         | "invoice_move_out"
         | "manual"
-      room_status: "occupied" | "vacant" | "maintenance"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -754,7 +771,6 @@ export const Constants = {
         "invoice_move_out",
         "manual",
       ],
-      room_status: ["occupied", "vacant", "maintenance"],
     },
   },
 } as const

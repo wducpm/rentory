@@ -1,11 +1,13 @@
 import type {
   BuildingSettings,
   Contract,
+  ContractOccupant,
   InvoiceDraft,
   InvoiceItem,
   Readings,
   Room,
 } from "./types";
+import { occupantCount } from "./occupants";
 import { derivePeriods } from "./periods";
 import { vnd } from "./money";
 
@@ -30,6 +32,7 @@ export const FEE_ORDER = [
 
 function serviceItems(
   contract: Contract,
+  occupants: ContractOccupant[],
   settings: BuildingSettings,
   amountScale: 0 | 1,
 ): InvoiceItem[] {
@@ -41,8 +44,9 @@ function serviceItems(
       is_deposit: false,
     },
     {
+      // BR-P15: số người = số dòng người ở, không có cột lưu sẵn
       fee: "common",
-      amount: vnd(settings.common_fee * contract.occupants * amountScale),
+      amount: vnd(settings.common_fee * occupantCount(occupants) * amountScale),
       is_deposit: false,
     },
   ];
@@ -56,6 +60,7 @@ function serviceItems(
  */
 export function moveInDefaults(
   contract: Contract,
+  occupants: ContractOccupant[],
   settings: BuildingSettings,
   marks: Readings,
   issueDate: string,
@@ -75,7 +80,7 @@ export function moveInDefaults(
     water_start: water,
     water_end: water,
     items: sortItems([
-      ...serviceItems(contract, settings, 1),
+      ...serviceItems(contract, occupants, settings, 1),
       { fee: "elec", amount: 0, is_deposit: false },
       { fee: "water", amount: 0, is_deposit: false },
       // HD-15: cọc thể hiện trên hóa đơn nhưng không tính doanh thu
@@ -91,6 +96,7 @@ export function moveInDefaults(
  */
 export function periodicDefaults(
   contract: Contract,
+  occupants: ContractOccupant[],
   settings: BuildingSettings,
   room: Room,
   endReadings: Readings,
@@ -113,7 +119,7 @@ export function periodicDefaults(
     water_start: waterStart,
     water_end: waterEnd,
     items: sortItems([
-      ...serviceItems(contract, settings, 1),
+      ...serviceItems(contract, occupants, settings, 1),
       {
         fee: "elec",
         amount: vnd(consumption(elecStart, elecEnd) * settings.elec_price),
@@ -136,6 +142,7 @@ export function periodicDefaults(
  */
 export function moveOutDefaults(
   contract: Contract,
+  occupants: ContractOccupant[],
   settings: BuildingSettings,
   room: Room,
   endReadings: Readings,
@@ -159,7 +166,7 @@ export function moveOutDefaults(
     water_end: waterEnd,
     items: sortItems([
       // HD-03: dịch vụ mặc định 0 nhưng vẫn hiển thị đầy đủ
-      ...serviceItems(contract, settings, 0),
+      ...serviceItems(contract, occupants, settings, 0),
       {
         fee: "elec",
         amount: vnd(consumption(elecStart, elecEnd) * settings.elec_price),

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { applyMark, isLatestInvoice, latestInvoice, markSourceOf } from "../marks";
 import { periodicDefaults } from "../defaults";
-import { contract, room, settings } from "./fixtures";
+import { contract, occupants, room, settings } from "./fixtures";
 import type { SavedInvoice } from "../types";
 
 describe("HD-04 + N3 — lưu hóa đơn thì ghi đè mốc và ghi log", () => {
   it("mốc phòng nhận chỉ số cuối của hóa đơn", () => {
     const r = room(4184, 106);
-    const draft = periodicDefaults(contract, settings, r, { elec: 4300, water: 112 }, "2025-08-31");
+    const draft = periodicDefaults(contract, occupants, settings, r, { elec: 4300, water: 112 }, "2025-08-31");
 
     const { room: after } = applyMark(
       r,

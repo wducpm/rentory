@@ -40,8 +40,18 @@ export type BuildingSettings = {
 export type Contract = {
   id?: string;
   rent: number;
-  occupants: number;
   deposit: number;
+};
+
+/**
+ * CR-02 / BR-P13 — hợp đồng lưu danh sách đầy đủ người ở, không chỉ số lượng.
+ * BR-P15: số người tính phí = `occupants.length`, không có cột lưu sẵn.
+ */
+export type ContractOccupant = {
+  id?: string;
+  full_name: string;
+  phone: string | null;
+  is_primary: boolean;
 };
 
 export type Room = {
@@ -50,6 +60,9 @@ export type Room = {
   current_elec: number;
   current_water: number;
 };
+
+/** CR-01 / BR-P04 — chỉ 2 trạng thái, suy từ hợp đồng chứ không lưu cột. */
+export type RoomStatus = "occupied" | "vacant";
 
 /** Một dòng tiền trên hóa đơn. N7: độc lập với chỉ số. */
 export type InvoiceItem = {

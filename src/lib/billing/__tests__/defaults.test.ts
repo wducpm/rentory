@@ -7,7 +7,7 @@ import {
   periodicDefaults,
   revenueTotal,
 } from "../defaults";
-import { amountOf, contract, room, settings } from "./fixtures";
+import { amountOf, contract, occupants, room, settings } from "./fixtures";
 
 describe("consumption", () => {
   it("bằng hiệu hai mốc, không bao giờ âm", () => {
@@ -18,7 +18,7 @@ describe("consumption", () => {
 });
 
 describe("HD-01 — hóa đơn nhận phòng", () => {
-  const draft = moveInDefaults(contract, settings, { elec: 4184, water: 106 }, "2025-08-20");
+  const draft = moveInDefaults(contract, occupants, settings, { elec: 4184, water: 106 }, "2025-08-20");
 
   it("điện = nước = 0", () => {
     expect(amountOf(draft.items, "elec")).toBe(0);
@@ -58,9 +58,7 @@ describe("HD-01 — hóa đơn nhận phòng", () => {
 });
 
 describe("HD-02 — hóa đơn định kỳ", () => {
-  const draft = periodicDefaults(
-    contract,
-    settings,
+  const draft = periodicDefaults(contract, occupants, settings,
     room(4184, 106),
     { elec: 4300, water: 112 },
     "2025-08-31",
@@ -79,7 +77,7 @@ describe("HD-02 — hóa đơn định kỳ", () => {
   });
 
   it("bắc cầu sang năm mới vẫn lệch đúng 1 tháng", () => {
-    const d = periodicDefaults(contract, settings, room(0, 0), { elec: 0, water: 0 }, "2025-12-31");
+    const d = periodicDefaults(contract, occupants, settings, room(0, 0), { elec: 0, water: 0 }, "2025-12-31");
     expect(d.utility_period).toBe("2025-12");
     expect(d.service_period).toBe("2026-01");
   });
@@ -95,9 +93,7 @@ describe("HD-02 — hóa đơn định kỳ", () => {
 });
 
 describe("HD-03 — hóa đơn trả phòng", () => {
-  const draft = moveOutDefaults(
-    contract,
-    settings,
+  const draft = moveOutDefaults(contract, occupants, settings,
     room(4000, 100),
     { elec: 4180, water: 106 },
     "2025-09-20",
@@ -133,9 +129,7 @@ describe("HD-03 — hóa đơn trả phòng", () => {
 describe("N7 — chỉ số và số tiền độc lập", () => {
   it("HD-12: sửa tiền điện lệch khỏi chỉ số vẫn hợp lệ, chỉ số không đổi", () => {
     // Kịch bản thay công tơ: mốc đã sửa thủ công về 0, chốt kỳ 60 số
-    const draft = periodicDefaults(
-      contract,
-      settings,
+    const draft = periodicDefaults(contract, occupants, settings,
       room(0, 0),
       { elec: 60, water: 0 },
       "2025-08-31",

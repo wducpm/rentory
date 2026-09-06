@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { MoveOutForm } from "@/components/invoice/move-out-form";
 import { getRoom } from "@/lib/data";
+import { primaryName } from "@/lib/billing";
 
 /** S-08 — trả phòng. */
 export default async function MoveOutPage({
@@ -50,11 +51,11 @@ export default async function MoveOutPage({
           }}
           contract={{
             id: c.id,
-            tenant_name: c.tenant_name,
-            occupants: c.occupants,
             rent: c.rent,
             deposit: c.deposit,
           }}
+          occupants={c.occupants}
+          tenantName={primaryName(c.occupants)}
           settings={{
             elec_price: s?.elec_price ?? 3800,
             water_price: s?.water_price ?? 30000,

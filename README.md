@@ -4,7 +4,16 @@ Quản lý hóa đơn phòng trọ — một codebase, một deployment, nhiều
 
 Tòa nhà đầu tiên: **190 Nguyễn Trãi** → https://190nt.vercel.app
 
-Nguồn sự thật nghiệp vụ: [`HANDOFF-rentory.md`](./HANDOFF-rentory.md) mục 4.
+Toàn bộ tài liệu đặc tả nằm trong [`docs/`](./docs):
+
+| File | Nội dung |
+|---|---|
+| [`HANDOFF-rentory.md`](./docs/HANDOFF-rentory.md) | **Nguồn sự thật nghiệp vụ** — mục 4 |
+| [`CHANGELOG-nghiep-vu.md`](./docs/CHANGELOG-nghiep-vu.md) | Delta nghiệp vụ đã chốt (CR-01…CR-07) |
+| [`srs-quan-ly-phong.md`](./docs/srs-quan-ly-phong.md) | Quản lý phòng, hợp đồng, người ở |
+| [`srs-chi-so-va-lap-hoa-don.md`](./docs/srs-chi-so-va-lap-hoa-don.md) | Màn Chỉ số + mẫu hóa đơn in |
+| [`srs-setting-toa-nha.md`](./docs/srs-setting-toa-nha.md) | Cài đặt tòa nhà |
+| [`DESIGN_SYSTEM.md`](./docs/DESIGN_SYSTEM.md) | Token màu, chữ, component |
 
 ---
 
@@ -91,6 +100,7 @@ src/
       defaults.ts         #   HD-01/02/03 số liệu mặc định 3 loại hóa đơn
       recognized.ts       #   TT-03/TT-06 số ghi nhận & trạng thái thu
       marks.ts            #   HD-04/HD-08a mốc công tơ + log
+      occupants.ts        #   BR-P13…P17 người ở, người đại diện, ngưỡng hết hạn
       meter.ts            #   BR-M01 thứ tự đọc công tơ, ngày chốt mặc định
       print.ts            #   mục 7 SRS — model bản in hóa đơn
     png.ts                # xuất DOM → PNG (không dùng thư viện ngoài)

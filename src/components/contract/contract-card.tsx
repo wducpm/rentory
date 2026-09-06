@@ -7,6 +7,7 @@ import {
   Pencil,
   Phone,
   Receipt,
+  Star,
   Users,
 } from "lucide-react";
 import { Money, Pill } from "@/components/ui-kit";
@@ -15,19 +16,26 @@ import {
   type EditableContract,
 } from "@/components/contract/contract-sheet";
 import { dateLabel, todayIso } from "@/lib/labels";
+import {
+  CONTRACT_EXPIRY_WARNING_DAYS,
+  daysUntil,
+  primaryName,
+} from "@/lib/billing";
 
 /** Thẻ hợp đồng hiện tại ở S-03, kèm CTA Sửa HĐ. */
 export function ContractCard({ contract }: { contract: EditableContract }) {
   const [editing, setEditing] = useState(false);
 
-  const expiring = daysLeft(contract.end_date);
+  const expiring = daysUntil(contract.end_date, todayIso());
 
   return (
     <>
       <div className="bg-card border-border space-y-3 rounded-2xl border p-4">
         <div className="flex items-start gap-2">
           <div className="min-w-0">
-            <p className="text-base font-semibold">{contract.tenant_name}</p>
+            <p className="text-base font-semibold">
+              {primaryName(contract.occupants)}
+            </p>
             {expiring !== null ? (
               <p className="text-muted-foreground mt-0.5 text-[11px]">
                 {expiring < 0
@@ -47,7 +55,8 @@ export function ContractCard({ contract }: { contract: EditableContract }) {
           </button>
         </div>
 
-        {expiring !== null && expiring <= 30 ? (
+        {/* CR-06 · FR-208: ngưỡng 15 ngày, hằng số đặt ở lib/billing */}
+        {expiring !== null && expiring <= CONTRACT_EXPIRY_WARNING_DAYS ? (
           <Pill tone={expiring < 0 ? "destructive" : "warning"}>
             {expiring < 0 ? "Hợp đồng đã hết hạn" : "Sắp hết hạn"}
           </Pill>
@@ -55,10 +64,10 @@ export function ContractCard({ contract }: { contract: EditableContract }) {
 
         <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
           <Field icon={<Users />} label="Số người ở">
-            {contract.occupants}
+            {contract.occupants.length}
           </Field>
           <Field icon={<Phone />} label="Điện thoại">
-            {contract.phone ?? "—"}
+            {contract.occupants.find((o) => o.is_primary)?.phone ?? "—"}
           </Field>
           <Field icon={<CalendarClock />} label="Ngày vào">
             {dateLabel(contract.start_date)}
@@ -73,6 +82,31 @@ export function ContractCard({ contract }: { contract: EditableContract }) {
             <Money value={contract.deposit} />
           </Field>
         </dl>
+
+        {/* CR-02 · FR-202 — danh sách đầy đủ người ở, đánh dấu người đại diện */}
+        <div className="border-border border-t pt-3">
+          <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            Người ở ({contract.occupants.length})
+          </p>
+          <ul className="mt-2 grid gap-1.5">
+            {contract.occupants.map((o, i) => (
+              <li key={o.id ?? i} className="flex items-center gap-2 text-xs">
+                {o.is_primary ? (
+                  <Star
+                    className="text-primary size-3.5 shrink-0"
+                    aria-label="Người đại diện"
+                  />
+                ) : (
+                  <span className="size-3.5 shrink-0" aria-hidden />
+                )}
+                <span className="truncate font-medium">{o.full_name}</span>
+                <span className="text-muted-foreground ml-auto shrink-0 tabular">
+                  {o.phone || "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       <ContractSheet
@@ -82,15 +116,6 @@ export function ContractCard({ contract }: { contract: EditableContract }) {
       />
     </>
   );
-}
-
-function daysLeft(endDate: string | null): number | null {
-  if (!endDate) return null;
-  const today = todayIso();
-  const ms =
-    new Date(`${endDate}T00:00:00`).getTime() -
-    new Date(`${today}T00:00:00`).getTime();
-  return Math.round(ms / 86_400_000);
 }
 
 function Field({

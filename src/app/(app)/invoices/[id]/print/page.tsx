@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { InvoicePrint } from "@/components/invoice/invoice-print";
 import { getInvoice } from "@/lib/data";
-import { buildPrintModel } from "@/lib/billing";
+import { buildPrintModel, primaryName } from "@/lib/billing";
 
 /** FR-107 · US-14 — xem và tải hóa đơn theo mẫu ở mục 7. */
 export default async function InvoicePrintPage({
@@ -27,8 +27,9 @@ export default async function InvoicePrintPage({
     water_end: Number(invoice.water_end),
     items: invoice.items,
     roomCode: room.code,
-    tenantName: contract.tenant_name,
-    occupants: contract.occupants,
+    // BR-P14: tên trên hóa đơn là người đại diện; BR-P15: số người = số dòng
+    tenantName: primaryName(contract.occupants),
+    occupants: contract.occupants.length,
     contractStart: contract.start_date,
     contractEnd: contract.end_date,
     note: settings?.invoice_note ?? null,

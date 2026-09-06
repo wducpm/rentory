@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { MoveInForm } from "@/components/invoice/move-in-form";
-import { getRoom } from "@/lib/data";
+import { getRoom, suggestedRent } from "@/lib/data";
+import { primaryName } from "@/lib/billing";
 
 /** S-07 — nhận phòng. */
 export default async function MoveInPage({
@@ -24,7 +25,7 @@ export default async function MoveInPage({
         <main className="mx-auto max-w-3xl px-4 md:px-6">
           <p className="bg-card border-border rounded-2xl border p-4 text-sm">
             Phòng này đang có hợp đồng hiệu lực của{" "}
-            <strong>{data.activeContract.tenant_name}</strong>. Trả phòng trước
+            <strong>{primaryName(data.activeContract.occupants)}</strong>. Trả phòng trước
             khi nhận khách mới.
           </p>
         </main>
@@ -33,6 +34,8 @@ export default async function MoveInPage({
   }
 
   const s = data.settings;
+  // FR-209 · BR-P18: giá hợp đồng gần nhất, null nếu là hợp đồng đầu tiên
+  const rentHint = await suggestedRent(id);
 
   return (
     <>
@@ -46,10 +49,10 @@ export default async function MoveInPage({
           room={{
             id: data.room.id,
             code: data.room.code,
-            base_rent: data.room.base_rent,
             current_elec: Number(data.room.current_elec),
             current_water: Number(data.room.current_water),
           }}
+          suggestedRent={rentHint}
           settings={{
             elec_price: s?.elec_price ?? 3800,
             water_price: s?.water_price ?? 30000,

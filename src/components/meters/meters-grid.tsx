@@ -18,6 +18,7 @@ import {
   lastDayOfMonth,
   periodicDefaults,
   type BuildingSettings,
+  type ContractOccupant,
   type InvoiceItem,
 } from "@/lib/billing";
 import { periodLabel } from "@/lib/labels";
@@ -27,13 +28,10 @@ export type MeterRow = {
   roomCode: string;
   currentElec: number;
   currentWater: number;
-  contract: {
-    id: string;
-    tenant_name: string;
-    occupants: number;
-    rent: number;
-    deposit: number;
-  };
+  contract: { id: string; rent: number; deposit: number };
+  occupants: ContractOccupant[];
+  /** BR-P14: tên hiển thị lấy từ người đại diện. */
+  tenantName: string;
 };
 
 export type PeriodicInvoice = {
@@ -124,6 +122,7 @@ export function MetersGrid({
     if (!filled(e.elecEnd) || !filled(e.waterEnd)) return null;
     return periodicDefaults(
       row.contract,
+      row.occupants,
       settings,
       {
         code: row.roomCode,
@@ -157,6 +156,7 @@ export function MetersGrid({
     if (!inv) return false;
     const asIssued = periodicDefaults(
       row.contract,
+      row.occupants,
       settings,
       {
         code: row.roomCode,
@@ -313,7 +313,7 @@ export function MetersGrid({
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold">P.{row.roomCode}</p>
                 <span className="text-muted-foreground truncate text-xs">
-                  {row.contract.tenant_name}
+                  {row.tenantName}
                 </span>
                 {inv ? (
                   <Pill tone="success" className="shrink-0">

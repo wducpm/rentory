@@ -8,49 +8,56 @@ import { TextField } from "@/components/forms/text-field";
 import { SubmitBar } from "@/components/forms/submit-bar";
 import { TermPicker } from "@/components/forms/term-picker";
 import { ItemsEditor } from "@/components/invoice/items-editor";
+import { OccupantsEditor } from "@/components/contract/occupants-editor";
 import { SectionHeader } from "@/components/ui-kit";
 import { moveIn } from "@/lib/actions";
 import {
   buildInvoiceCode,
   displayInvoiceCode,
   moveInDefaults,
+  resizeOccupants,
+  validateOccupants,
   type BuildingSettings,
+  type ContractOccupant,
   type InvoiceItem,
 } from "@/lib/billing";
 import { periodsLine, todayIso } from "@/lib/labels";
 
 export function MoveInForm({
   room,
+  suggestedRent,
   settings,
 }: {
   room: {
     id: string;
     code: string;
-    base_rent: number;
     current_elec: number;
     current_water: number;
   };
+  /** FR-209 · BR-P18: giá hợp đồng gần nhất; null nếu là hợp đồng đầu tiên. */
+  suggestedRent: number | null;
   settings: BuildingSettings;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
 
-  const [tenantName, setTenantName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [occupants, setOccupants] = useState<number | "">(1);
+  // CR-02 · FR-205: danh sách đầy đủ người ở, người đầu là đại diện
+  const [occupants, setOccupants] = useState<ContractOccupant[]>(() =>
+    resizeOccupants([], 1),
+  );
   const [startDate, setStartDate] = useState(todayIso());
   // Ngày bắt đầu HĐ mặc định bám theo ngày nhận phòng cho tới khi admin tự sửa
   const [contractStart, setContractStart] = useState(todayIso());
   const [contractStartTouched, setContractStartTouched] = useState(false);
   const [endDate, setEndDate] = useState("");
-  const [rent, setRent] = useState<number | "">(room.base_rent);
-  const [deposit, setDeposit] = useState<number | "">(room.base_rent);
+  // AC-21.10: phòng chưa từng có hợp đồng → ô giá để trống
+  const [rent, setRent] = useState<number | "">(suggestedRent ?? "");
+  const [deposit, setDeposit] = useState<number | "">("");
   const [elec, setElec] = useState<number | "">(room.current_elec);
   const [water, setWater] = useState<number | "">(room.current_water);
 
   const contract = {
     rent: rent === "" ? 0 : Number(rent),
-    occupants: occupants === "" ? 1 : Number(occupants),
     deposit: deposit === "" ? 0 : Number(deposit),
   };
 
@@ -59,12 +66,13 @@ export function MoveInForm({
     () =>
       moveInDefaults(
         contract,
+        occupants,
         settings,
         { elec: elec === "" ? 0 : Number(elec), water: water === "" ? 0 : Number(water) },
         startDate,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [contract.rent, contract.occupants, contract.deposit, settings, elec, water, startDate],
+    [contract.rent, contract.deposit, occupants, settings, elec, water, startDate],
   );
 
   const [items, setItems] = useState<InvoiceItem[] | null>(null);
@@ -79,8 +87,15 @@ export function MoveInForm({
   );
 
   function submit() {
-    if (!tenantName.trim()) {
-      toast.error("Chưa nhập tên khách");
+    // BR-P17 · AC-21.8/21.9
+    const issues = validateOccupants(occupants);
+    if (issues.length > 0) {
+      toast.error(issues[0].message);
+      return;
+    }
+    // BR-P05: cọc bắt buộc khai báo, được nhập 0 nhưng không bỏ trống
+    if (deposit === "") {
+      toast.error("Tiền cọc bắt buộc khai báo (nhập 0 nếu không thu).");
       return;
     }
     if (endDate && endDate <= contractStart) {
@@ -91,9 +106,11 @@ export function MoveInForm({
       const res = await moveIn({
         room_id: room.id,
         room_code: room.code,
-        tenant_name: tenantName,
-        phone,
-        occupants: contract.occupants,
+        occupants: occupants.map((o) => ({
+          full_name: o.full_name,
+          phone: o.phone ?? "",
+          is_primary: o.is_primary,
+        })),
         start_date: startDate,
         contract_start: contractStart,
         end_date: endDate || null,
@@ -118,32 +135,19 @@ export function MoveInForm({
   return (
     <div className="space-y-5 pb-32">
       <section>
-        <SectionHeader title="Khách thuê" />
+        <SectionHeader title="Người ở" />
         <div className="bg-card border-border grid gap-3 rounded-2xl border p-4">
-          <TextField
-            id="tenant"
-            label="Tên khách"
-            value={tenantName}
-            onChange={setTenantName}
-            required
+          <OccupantsEditor
+            occupants={occupants}
+            onChange={setOccupants}
+            idPrefix="mi-occ"
           />
-          <div className="grid grid-cols-2 gap-3">
-            <TextField
-              id="phone"
-              type="tel"
-              label="Điện thoại"
-              value={phone}
-              onChange={setPhone}
-            />
-            <NumberField
-              id="occupants"
-              label="Số người"
-              min={1}
-              step="1"
-              value={occupants}
-              onChange={setOccupants}
-            />
-          </div>
+        </div>
+      </section>
+
+      <section>
+        <SectionHeader title="Hợp đồng" />
+        <div className="bg-card border-border grid gap-3 rounded-2xl border p-4">
           <TextField
             id="start-date"
             type="date"
@@ -190,10 +194,15 @@ export function MoveInForm({
               step="1000"
               value={rent}
               onChange={setRent}
+              hint={
+                suggestedRent === null
+                  ? "Hợp đồng đầu tiên — nhập tay"
+                  : "Theo hợp đồng gần nhất"
+              }
             />
             <NumberField
               id="deposit"
-              label="Cọc"
+              label="Cọc (bắt buộc)"
               suffix="đ"
               step="1000"
               value={deposit}
@@ -248,7 +257,7 @@ export function MoveInForm({
       <SubmitBar
         label="Nhận phòng & lập hóa đơn"
         pending={pending}
-        disabled={!tenantName.trim()}
+        disabled={validateOccupants(occupants).length > 0 || deposit === ""}
         onClick={submit}
       />
     </div>

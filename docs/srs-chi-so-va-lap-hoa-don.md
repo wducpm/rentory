@@ -1,6 +1,6 @@
 # SRS — Màn Chỉ số & Lập hóa đơn (Meter Reading)
 
-**Dự án:** Rentory · **Phiên bản:** 1.0 · **Ngày:** 03/09/2026
+**Dự án:** Rentory · **Phiên bản:** 1.1 · **Ngày:** 03/09/2026
 **Nguồn yêu cầu:** Admin (chủ tòa nhà) + mẫu hóa đơn in đính kèm
 **Liên quan:** `nghiep-vu-hoa-don-v2.md` v2.3 · `srs-setting-toa-nha.md` v1.1 · `HANDOFF-rentory.md`
 
@@ -56,7 +56,7 @@ Ví dụ chọn 31/08/2026 → kỳ điện nước T8/2026, kỳ dịch vụ T9
 
 Mỗi dòng gồm: tên phòng · tên khách · điện (đầu kỳ / cuối kỳ / đã dùng) · nước (đầu kỳ / cuối kỳ / đã dùng) · thành tiền tạm tính.
 
-Phòng Trống và phòng Bảo trì **không xuất hiện** — không có ai để lập hóa đơn.
+Phòng Trống **không xuất hiện** — không có ai để lập hóa đơn.
 
 ### FR-103 · Tự điền số đầu kỳ
 
@@ -115,7 +115,7 @@ Phòng thiếu số cuối kỳ → **bỏ qua, không chặn cả lô**, và b�
 | ID | Quy tắc |
 |---|---|
 | **BR-M01** | Thứ tự hiển thị phòng: **giảm dần** theo phần số của tên phòng (802 → 801 → 703 → … → 201), khớp thứ tự admin đi đọc công tơ từ tầng cao xuống. |
-| **BR-M02** | Chỉ hiển thị phòng **đang có hợp đồng hiệu lực**. Phòng Trống / Bảo trì không lập hóa đơn định kỳ. |
+| **BR-M02** | Chỉ hiển thị phòng **đang có hợp đồng hiệu lực**. Phòng Trống không lập hóa đơn định kỳ. |
 | **BR-M03** | Số cuối kỳ ≥ số đầu kỳ. Vi phạm → chặn lưu dòng đó, không chặn các dòng khác. |
 | **BR-M04** | Cho phép lập hóa đơn khi còn phòng thiếu số. Phòng thiếu bị bỏ qua và được liệt kê để nhắc bổ sung. |
 | **BR-M05** | Lập hóa đơn thành công → **mốc phòng = số cuối kỳ của hóa đơn** (HD-04), ghi log. |
@@ -199,12 +199,12 @@ Phòng thiếu số cuối kỳ → **bỏ qua, không chặn cả lô**, và b�
 | Vùng | Nội dung hiển thị | Nguồn dữ liệu |
 |---|---|---|
 | Tiêu đề | `HÓA ĐƠN THÁNG {tháng}/{năm}` | **kỳ dịch vụ** của hóa đơn |
-| Dòng phòng | `P503 - HỒ THỊ TRANG` (in hoa) | `rooms.code` + `contracts.tenant_name` |
+| Dòng phòng | `P503 - HỒ THỊ TRANG` (in hoa) | `rooms.code` + tên **người đại diện** trong `contract_occupants` |
 | Thời hạn hợp đồng | `01/07/2026 - 30/06/2027` | `contracts.start_date` – `end_date` |
 | GIÁ THUÊ | `4,200,000 VND` | dòng phí `rent` |
 | ĐIỆN | Số đầu kì · Số cuối kì · Số điện đã sử dụng (`kWh`) · Tổng | `elec_start`, `elec_end`, hiệu số, dòng phí `elec` |
 | NƯỚC | Số đầu kì · Số cuối kì · Số nước đã sử dụng (`m³`) · Tổng | `water_start`, `water_end`, hiệu số, dòng phí `water` |
-| DỊCH VỤ CHUNG | Số người · Tổng | `contracts.occupants`, dòng phí `common` |
+| DỊCH VỤ CHUNG | Số người · Tổng | số dòng `contract_occupants`, dòng phí `common` |
 | INTERNET | Tổng | dòng phí `internet` |
 | TIỀN PHÒNG | `4,200,000 VND` | dòng phí `rent` |
 | TIỀN DỊCH VỤ | `647,400 VND` | tổng `elec + water + common + internet` |
@@ -231,7 +231,8 @@ Phòng thiếu số cuối kỳ → **bỏ qua, không chặn cả lô**, và b�
 | Bảng | Trường liên quan |
 |---|---|
 | `rooms` | `code`, `current_elec`, `current_water` (mốc hiện tại) |
-| `contracts` | `tenant_name`, `occupants`, `rent`, `start_date`, `end_date`, `active` |
+| `contracts` | `rent`, `start_date`, `end_date`, `active` |
+| `contract_occupants` | `full_name`, `phone`, `is_primary` — số người = số dòng |
 | `invoices` | `code`, `type`, `issue_date`, `utility_period`, `service_period`, `elec_start/end`, `water_start/end` |
 | `invoice_items` | `fee`, `amount` |
 | `building_settings` | 4 đơn giá + **ghi chú cuối hóa đơn** (trường mới) |
