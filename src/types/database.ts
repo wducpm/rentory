@@ -18,27 +18,27 @@ export type Database = {
         Row: {
           building_id: string
           common_fee: number
-          invoice_note: string | null
           elec_price: number
           internet_fee: number
+          invoice_note: string | null
           updated_at: string
           water_price: number
         }
         Insert: {
           building_id: string
           common_fee?: number
-          invoice_note?: string | null
           elec_price?: number
           internet_fee?: number
+          invoice_note?: string | null
           updated_at?: string
           water_price?: number
         }
         Update: {
           building_id?: string
           common_fee?: number
-          invoice_note?: string | null
           elec_price?: number
           internet_fee?: number
+          invoice_note?: string | null
           updated_at?: string
           water_price?: number
         }
@@ -512,41 +512,24 @@ export type Database = {
         Returns: string
       }
       is_my_building: { Args: { b: string }; Returns: boolean }
-      move_in:
-        | {
-            Args: {
-              p_code: string
-              p_deposit: number
-              p_elec: number
-              p_items: Json
-              p_note?: string
+      move_in: {
+        Args: {
+          p_code: string
+          p_contract_start?: string
+          p_deposit: number
+          p_elec: number
+          p_end_date?: string
+          p_items: Json
+          p_note?: string
           p_occupants: Json
-              p_rent: number
-              p_room_id: string
-              p_service_period: string
-              p_start_date: string
-              p_water: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_code: string
-              p_contract_start?: string
-              p_deposit: number
-              p_elec: number
-              p_end_date?: string
-              p_items: Json
-              p_note?: string
-          p_occupants: Json
-              p_rent: number
-              p_room_id: string
-              p_service_period: string
-              p_start_date: string
-              p_water: number
-            }
-            Returns: string
-          }
+          p_rent: number
+          p_room_id: string
+          p_service_period: string
+          p_start_date: string
+          p_water: number
+        }
+        Returns: string
+      }
       move_out: {
         Args: {
           p_code: string
@@ -562,6 +545,10 @@ export type Database = {
         }
         Returns: string
       }
+      replace_contract_occupants: {
+        Args: { p_contract_id: string; p_occupants: Json }
+        Returns: undefined
+      }
       replace_invoice_items: {
         Args: { p_invoice_id: string; p_items: Json }
         Returns: undefined
@@ -574,10 +561,6 @@ export type Database = {
           p_room_id: string
           p_water: number
         }
-        Returns: undefined
-      }
-      replace_contract_occupants: {
-        Args: { p_contract_id: string; p_occupants: Json }
         Returns: undefined
       }
       update_contract: {

@@ -53,13 +53,8 @@ export function PricesForm({ initial }: { initial: Initial }) {
         toast.error(res.error);
         return;
       }
-
-      if (res.data.noteSaved) toast.success("Đã lưu cài đặt");
-      else
-        toast.warning(
-          "Đã lưu đơn giá. Ghi chú hóa đơn chưa lưu được — database còn thiếu migration 0005.",
-          { duration: 8000 },
-        );
+      // BR-S04: đơn giá mới chỉ áp cho hóa đơn lập sau đó (AC-02.4)
+      toast.success("Đã lưu. Đơn giá mới áp cho hóa đơn lập từ giờ trở đi.");
       router.refresh();
     });
   }
