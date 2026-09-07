@@ -75,25 +75,20 @@ export default async function RoomPage({
         </section>
 
         {/* CTA — không có lối vào ghi chỉ số ở đây. Chỉ số chỉ nhập tại màn
-            này khi đang làm thủ tục nhận/trả phòng; ghi chỉ số cuối kỳ là việc
-            của S-06 (tab Chỉ số), làm cả tòa một lượt. */}
-        <section>
-          {occupied ? (
+            này khi đang làm thủ tục nhận/trả phòng, và hai form đó đã có sẵn ô
+            nhập; ghi chỉ số cuối kỳ là việc của S-06 (tab Chỉ số), làm cả tòa
+            một lượt. Phòng trống không có nút riêng vì EmptyState ở trên đã
+            mang sẵn CTA Nhận phòng. */}
+        {occupied ? (
+          <section>
             <ActionLink
               href={`/rooms/${room.id}/move-out`}
               icon={<LogOut />}
               tone="warning"
               label="Trả phòng"
             />
-          ) : (
-            <ActionLink
-              href={`/rooms/${room.id}/move-in`}
-              icon={<LogIn />}
-              tone="success"
-              label="Nhận phòng"
-            />
-          )}
-        </section>
+          </section>
+        ) : null}
 
         {/* Hóa đơn của phòng — HD-14 luôn mở lại được */}
         <section>
