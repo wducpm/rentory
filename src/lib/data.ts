@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { currentBuilding } from "@/lib/building";
 import {
   sortForMeterReading,
+  invoiceMonth,
   invoiceStatusFromRows,
   paidTotalFromRows,
   primaryName,
@@ -489,6 +490,12 @@ export type DashboardData = {
     roomCode: string;
     tenantName: string | null;
   })[];
+  /** Hóa đơn của kỳ ĐÃ QUA mà còn khoản chưa thu — nợ dồn sang kỳ sau. */
+  overdueInvoices: (InvoiceWithStatus & {
+    roomCode: string;
+    tenantName: string | null;
+    month: string;
+  })[];
   dueAmount: number;
   unreadMeters: number;
 };
@@ -562,7 +569,99 @@ export async function getDashboard(): Promise<DashboardData> {
     periodInvoices: inPeriod.length,
     periodPaid: inPeriod.filter((i) => i.status === "paid").length,
     dueInvoices: due,
+    overdueInvoices: due
+      .map((i) => ({ ...i, month: invoiceMonth(i) }))
+      .filter((i): i is (typeof due)[number] & { month: string } =>
+        i.month !== null && i.month < period,
+      ),
     dueAmount: due.reduce((s, i) => s + (i.total - i.paid), 0),
     unreadMeters,
+  };
+}
+
+/**
+ * S-11 — hóa đơn của một phòng theo **kỳ tháng**.
+ *
+ * Kỳ ở đây là tháng gọi tên hóa đơn (`invoiceMonth`): hóa đơn tháng M gồm điện
+ * nước tháng M−1 và dịch vụ tháng M. Một tháng thường chỉ có một hóa đơn, nhưng
+ * tháng nhận phòng hoặc trả phòng có thể có hai nên trả về mảng.
+ *
+ * `overdue` là các kỳ **đã qua** mà còn khoản chưa thu — cơ sở cho cảnh báo
+ * "sang kỳ sau vẫn chưa thu hết".
+ */
+export async function getRoomPeriodInvoices(roomId: string, period: string) {
+  const building = await requireBuilding();
+  const supabase = await createClient();
+
+  const [roomRes, contractsRes, invoicesRes, settingsRes, occRes] =
+    await Promise.all([
+      supabase.from("rooms").select("*").eq("id", roomId).maybeSingle(),
+      supabase
+        .from("contracts")
+        .select("*")
+        .eq("room_id", roomId)
+        .order("start_date", { ascending: false }),
+      supabase
+        .from("invoices")
+        .select("*")
+        .eq("room_id", roomId)
+        .order("issue_date", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("building_settings")
+        .select("*")
+        .eq("building_id", building.id)
+        .maybeSingle(),
+      allOccupants(supabase),
+    ]);
+
+  if (!roomRes.data) return null;
+
+  const invoiceIds = (invoicesRes.data ?? []).map((i) => i.id);
+  const [itemsRes, recognizedRes] = await Promise.all([
+    invoiceIds.length
+      ? supabase.from("invoice_items").select("*").in("invoice_id", invoiceIds)
+      : Promise.resolve({ data: [] as T["invoice_items"]["Row"][] }),
+    invoiceIds.length
+      ? supabase
+          .from("recognized_items")
+          .select("*")
+          .in("invoice_id", invoiceIds)
+      : Promise.resolve({ data: [] as RecognizedRow[] }),
+  ]);
+
+  const itemsByInvoice = groupItems(itemsRes.data ?? []);
+  const recognized = (recognizedRes.data ?? []) as RecognizedRow[];
+
+  const all = (invoicesRes.data ?? []).map((inv) =>
+    decorate(inv, itemsByInvoice.get(inv.id) ?? [], recognized),
+  );
+
+  const occupantsByContract = groupOccupants(occRes.data ?? []);
+  const contracts = contractsRes.data ?? [];
+  const active = contracts.find((c) => c.active) ?? null;
+
+  return {
+    room: roomRes.data,
+    settings: settingsRes.data ?? null,
+    activeContract: active
+      ? { ...active, occupants: occupantsByContract.get(active.id) ?? [] }
+      : null,
+    // Kỳ đang xem
+    invoices: all
+      .filter((i) => invoiceMonth(i) === period)
+      .map((i) => ({
+        ...i,
+        recognized: recognized.filter((r) => r.invoice_id === i.id),
+      })),
+    /** Mọi kỳ có hóa đơn — để date picker biết chỗ nào có dữ liệu. */
+    months: [...new Set(all.map(invoiceMonth).filter((m): m is string => !!m))],
+    /** Kỳ đã qua mà còn nợ (dùng cho cảnh báo). */
+    overdue: all
+      .filter((i) => i.status === "due")
+      .map((i) => ({ month: invoiceMonth(i), id: i.id, unpaid: i.total - i.paid }))
+      .filter((i): i is { month: string; id: string; unpaid: number } =>
+        i.month !== null && i.month < period,
+      ),
   };
 }

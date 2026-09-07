@@ -6,6 +6,7 @@ import {
   LogOut,
   Receipt,
   Settings2,
+  TriangleAlert,
 } from "lucide-react";
 import { HeroAction, HeroHeader } from "@/components/hero-header";
 import { NoBuilding } from "@/components/no-building";
@@ -20,7 +21,7 @@ import { headers } from "next/headers";
 import { getDashboard, NoBuildingError } from "@/lib/data";
 import { currentBuildingSlug } from "@/lib/building";
 import { displayInvoiceCode, formatVnd } from "@/lib/billing";
-import { dateLabel } from "@/lib/labels";
+import { dateLabel, periodLabel } from "@/lib/labels";
 
 export default async function HomePage() {
   let data;
@@ -41,6 +42,7 @@ export default async function HomePage() {
     periodInvoices,
     periodPaid,
     dueInvoices,
+    overdueInvoices,
     dueAmount,
     unreadMeters,
   } = data;
@@ -150,19 +152,36 @@ export default async function HomePage() {
             />
           ) : (
             <ul className="space-y-2">
-              {dueInvoices.slice(0, 5).map((inv) => (
+              {/* Nợ dồn lên trước: kỳ đã qua mà vẫn chưa thu hết */}
+              {overdueInvoices.slice(0, 5).map((inv) => (
                 <li key={inv.id}>
                   <AlertRow
-                    icon={<Receipt />}
-                    tone="warning"
+                    icon={<TriangleAlert />}
+                    tone="destructive"
                     title={`P.${inv.roomCode}`}
                     meta={inv.tenantName ?? undefined}
-                    detail={`${displayInvoiceCode(inv.code)} · còn ${formatVnd(inv.total - inv.paid)} · lập ${dateLabel(inv.issue_date)}`}
-                    href={`/invoices/${inv.id}`}
+                    detail={`Nợ ${periodLabel(inv.month)} · còn ${formatVnd(inv.total - inv.paid)}`}
+                    href={`/rooms/${inv.room_id}/invoice?period=${inv.month}`}
                     action="Thu tiền"
                   />
                 </li>
               ))}
+              {dueInvoices
+                .filter((i) => !overdueInvoices.some((o) => o.id === i.id))
+                .slice(0, 5)
+                .map((inv) => (
+                  <li key={inv.id}>
+                    <AlertRow
+                      icon={<Receipt />}
+                      tone="warning"
+                      title={`P.${inv.roomCode}`}
+                      meta={inv.tenantName ?? undefined}
+                      detail={`${displayInvoiceCode(inv.code)} · còn ${formatVnd(inv.total - inv.paid)} · lập ${dateLabel(inv.issue_date)}`}
+                      href={`/invoices/${inv.id}`}
+                      action="Thu tiền"
+                    />
+                  </li>
+                ))}
             </ul>
           )}
         </section>

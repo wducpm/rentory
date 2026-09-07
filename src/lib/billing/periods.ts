@@ -50,3 +50,18 @@ export function derivePeriods(
       return { utility_period: current, service_period: null };
   }
 }
+
+/**
+ * Tháng gọi tên một hóa đơn — "hóa đơn tháng M" = điện nước M−1 + dịch vụ M.
+ *
+ * Hóa đơn định kỳ và nhận phòng đã mang sẵn kỳ dịch vụ nên lấy thẳng. Hóa đơn
+ * trả phòng chỉ có kỳ điện nước (HD-03, dịch vụ đã thu ở kỳ trước) nên suy ra
+ * tháng liền sau: số điện tháng M được chốt và thu trong hóa đơn tháng M+1.
+ */
+export function invoiceMonth(inv: {
+  utility_period: string | null;
+  service_period: string | null;
+}): Period | null {
+  if (inv.service_period) return inv.service_period;
+  return inv.utility_period ? nextPeriod(inv.utility_period) : null;
+}
