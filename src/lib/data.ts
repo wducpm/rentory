@@ -105,7 +105,7 @@ export async function listRooms(): Promise<{
   const building = await requireBuilding();
   const supabase = await createClient();
 
-  const [roomsRes, contractsRes, invoicesRes, itemsRes, recognizedRes] =
+  const [roomsRes, contractsRes, invoicesRes, itemsRes, recognizedRes, occRes] =
     await Promise.all([
       supabase
         .from("rooms")
@@ -117,6 +117,7 @@ export async function listRooms(): Promise<{
       supabase.from("invoices").select("*").eq("building_id", building.id),
       supabase.from("invoice_items").select("*"),
       supabase.from("recognized_items").select("*"),
+      allOccupants(supabase),
     ]);
 
   const invoices = invoicesRes.data ?? [];
@@ -128,10 +129,7 @@ export async function listRooms(): Promise<{
   );
 
   const contracts = contractsRes.data ?? [];
-  const occupantsByContract = await fetchOccupants(
-    supabase,
-    contracts.map((c) => c.id),
-  );
+  const occupantsByContract = groupOccupants(occRes.data ?? []);
 
   const rooms: RoomSummary[] = (roomsRes.data ?? []).map((room) => {
     const mine = decorated.filter((i) => i.room_id === room.id);
@@ -202,16 +200,13 @@ function groupOccupants(rows: OccupantRow[]): Map<string, ContractOccupant[]> {
   return map;
 }
 
-async function fetchOccupants(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  contractIds: string[],
-): Promise<Map<string, ContractOccupant[]>> {
-  if (contractIds.length === 0) return new Map();
-  const { data } = await supabase
-    .from("contract_occupants")
-    .select("*")
-    .in("contract_id", contractIds);
-  return groupOccupants(data ?? []);
+/**
+ * Truy vấn người ở của cả tòa. Gọi kèm trong `Promise.all` của từng màn thay
+ * vì chờ có contract id rồi mới lọc `.in()` — RLS đã giới hạn theo tòa nên
+ * dữ liệu thừa không đáng kể, mà tiết kiệm được một lượt đi–về.
+ */
+function allOccupants(supabase: Awaited<ReturnType<typeof createClient>>) {
+  return supabase.from("contract_occupants").select("*");
 }
 
 function groupItems(
@@ -231,7 +226,7 @@ export async function getRoom(roomId: string) {
   const building = await requireBuilding();
   const supabase = await createClient();
 
-  const [roomRes, contractsRes, invoicesRes, settingsRes] = await Promise.all([
+  const [roomRes, contractsRes, invoicesRes, settingsRes, occRes] = await Promise.all([
     supabase.from("rooms").select("*").eq("id", roomId).maybeSingle(),
     supabase
       .from("contracts")
@@ -249,6 +244,7 @@ export async function getRoom(roomId: string) {
       .select("*")
       .eq("building_id", building.id)
       .maybeSingle(),
+    allOccupants(supabase),
   ]);
 
   if (!roomRes.data) return null;
@@ -267,10 +263,7 @@ export async function getRoom(roomId: string) {
   const recognized = (recognizedRes.data ?? []) as RecognizedRow[];
 
   const contracts = contractsRes.data ?? [];
-  const occupantsByContract = await fetchOccupants(
-    supabase,
-    contracts.map((c) => c.id),
-  );
+  const occupantsByContract = groupOccupants(occRes.data ?? []);
   const withOccupants: ContractWithOccupants[] = contracts.map((c) => ({
     ...c,
     occupants: occupantsByContract.get(c.id) ?? [],
@@ -302,7 +295,7 @@ export async function getInvoice(invoiceId: string) {
     .maybeSingle();
   if (!invoice) return null;
 
-  const [itemsRes, recognizedRes, roomRes, contractRes, receiptsRes, settingsRes] =
+  const [itemsRes, recognizedRes, roomRes, contractRes, receiptsRes, settingsRes, occRes] =
     await Promise.all([
       supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId),
       supabase.from("recognized_items").select("*").eq("invoice_id", invoiceId),
@@ -323,15 +316,14 @@ export async function getInvoice(invoiceId: string) {
         .select("*")
         .eq("building_id", invoice.building_id)
         .maybeSingle(),
+      allOccupants(supabase),
     ]);
 
   const items = groupItems(itemsRes.data ?? []).get(invoiceId) ?? [];
   const recognized = (recognizedRes.data ?? []) as RecognizedRow[];
 
   const occupants = contractRes.data
-    ? ((await fetchOccupants(supabase, [contractRes.data.id])).get(
-        contractRes.data.id,
-      ) ?? [])
+    ? (groupOccupants(occRes.data ?? []).get(contractRes.data.id) ?? [])
     : [];
 
   return {
@@ -361,7 +353,7 @@ export async function listMeterRows() {
   const building = await requireBuilding();
   const supabase = await createClient();
 
-  const [roomsRes, contractsRes, settingsRes] = await Promise.all([
+  const [roomsRes, contractsRes, settingsRes, occRes] = await Promise.all([
     supabase
       .from("rooms")
       .select("*")
@@ -373,6 +365,7 @@ export async function listMeterRows() {
       .select("*")
       .eq("building_id", building.id)
       .maybeSingle(),
+    allOccupants(supabase),
   ]);
 
   const contracts = contractsRes.data ?? [];
@@ -386,27 +379,20 @@ export async function listMeterRows() {
       .map((r) => ({ ...r, code: r.room.code })),
   );
 
-  const contractIds = occupied.map((r) => r.contract!.id);
-  const occupantsByContract = await fetchOccupants(supabase, contractIds);
-  const invoicesRes = contractIds.length
-    ? await supabase
-        .from("invoices")
-        .select("*")
-        .eq("type", "periodic")
-        .in("contract_id", contractIds)
-    : { data: [] as InvoiceRow[] };
+  const occupantsByContract = groupOccupants(occRes.data ?? []);
+
+  // Hóa đơn định kỳ và dòng tiền của chúng trước đây chạy nối đuôi nhau sau
+  // batch trên. Lấy song song theo building_id để cả màn chỉ còn hai lượt.
+  const [invoicesRes, itemsRes] = await Promise.all([
+    supabase
+      .from("invoices")
+      .select("*")
+      .eq("building_id", building.id)
+      .eq("type", "periodic"),
+    supabase.from("invoice_items").select("*"),
+  ]);
 
   const invoices = invoicesRes.data ?? [];
-  const itemsRes = invoices.length
-    ? await supabase
-        .from("invoice_items")
-        .select("*")
-        .in(
-          "invoice_id",
-          invoices.map((i) => i.id),
-        )
-    : { data: [] as T["invoice_items"]["Row"][] };
-
   const itemsByInvoice = groupItems(itemsRes.data ?? []);
 
   return {
@@ -430,7 +416,7 @@ export async function listMeterRows() {
 export async function getRoomHistory(roomId: string) {
   const supabase = await createClient();
 
-  const [invoicesRes, marksRes, contractsRes] = await Promise.all([
+  const [invoicesRes, marksRes, contractsRes, occRes] = await Promise.all([
     supabase
       .from("invoices")
       .select("*")
@@ -443,6 +429,7 @@ export async function getRoomHistory(roomId: string) {
       .order("effective_date", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase.from("contracts").select("*").eq("room_id", roomId),
+    allOccupants(supabase),
   ]);
 
   const invoiceIds = (invoicesRes.data ?? []).map((i) => i.id);
@@ -456,10 +443,7 @@ export async function getRoomHistory(roomId: string) {
 
   // FR-207: mỗi mục ghi rõ thuộc về khách nào (BR-P14: tên người đại diện)
   const contracts = contractsRes.data ?? [];
-  const occupantsByContract = await fetchOccupants(
-    supabase,
-    contracts.map((c) => c.id),
-  );
+  const occupantsByContract = groupOccupants(occRes.data ?? []);
   const tenantOf = new Map(
     contracts.map((c) => [
       c.id,
@@ -508,7 +492,7 @@ export async function getDashboard(): Promise<DashboardData> {
   const building = await requireBuilding();
   const supabase = await createClient();
 
-  const [roomsRes, contractsRes, invoicesRes, itemsRes, recognizedRes] =
+  const [roomsRes, contractsRes, invoicesRes, itemsRes, recognizedRes, occRes] =
     await Promise.all([
       supabase
         .from("rooms")
@@ -520,14 +504,12 @@ export async function getDashboard(): Promise<DashboardData> {
       supabase.from("invoices").select("*").eq("building_id", building.id),
       supabase.from("invoice_items").select("*"),
       supabase.from("recognized_items").select("*"),
+      allOccupants(supabase),
     ]);
 
   const rooms = roomsRes.data ?? [];
   const contracts = contractsRes.data ?? [];
-  const occupantsByContract = await fetchOccupants(
-    supabase,
-    contracts.map((c) => c.id),
-  );
+  const occupantsByContract = groupOccupants(occRes.data ?? []);
   const itemsByInvoice = groupItems(itemsRes.data ?? []);
   const recognized = (recognizedRes.data ?? []) as RecognizedRow[];
 

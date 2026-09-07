@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Droplets, PencilRuler, Settings2, Zap } from "lucide-react";
+import { CloudOff, Droplets, PencilRuler, Save, Settings2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { NumberField } from "@/components/forms/number-field";
@@ -22,6 +22,12 @@ import {
   type InvoiceItem,
 } from "@/lib/billing";
 import { periodLabel } from "@/lib/labels";
+import {
+  clearDraft,
+  loadDraft,
+  saveDraft,
+  type MeterEntry,
+} from "@/lib/meter-draft";
 
 export type MeterRow = {
   roomId: string;
@@ -46,7 +52,7 @@ export type PeriodicInvoice = {
   items: InvoiceItem[];
 };
 
-type Entry = { elecStart: number | ""; elecEnd: number | ""; waterStart: number | ""; waterEnd: number | "" };
+type Entry = MeterEntry;
 
 const num = (v: number | "") => (v === "" ? 0 : Number(v));
 const filled = (v: number | "") => v !== "";
@@ -88,6 +94,51 @@ export function MetersGrid({
   /** FR-103: số đầu kỳ điền sẵn = mốc hiện tại, hoặc chỉ số của hóa đơn đã lập. */
   const [entries, setEntries] = useState<Record<string, Entry>>({});
   const [touched, setTouched] = useState<Record<string, true>>({});
+  const [draftAt, setDraftAt] = useState<string | null>(null);
+  const [online, setOnline] = useState(true);
+
+  // Khôi phục nháp của đúng kỳ dịch vụ đang chọn. Đổi kỳ thì nạp nháp của kỳ đó.
+  const restoredFor = useRef<string | null>(null);
+  const skipNextSave = useRef(false);
+
+  useEffect(() => {
+    if (restoredFor.current === servicePeriod) return;
+    restoredFor.current = servicePeriod;
+    // Effect lưu bên dưới cũng chạy ngay trong lượt mount này, nhưng closure
+    // của nó còn giữ `entries` rỗng của lần render đầu — để nó chạy là xóa
+    // mất nháp vừa nạp. Bỏ qua đúng một lượt.
+    skipNextSave.current = true;
+
+    const draft = loadDraft(servicePeriod);
+    setEntries(draft?.entries ?? {});
+    setTouched({});
+    setDraftAt(draft?.savedAt ?? null);
+    if (draft?.issueDate) setIssueDate(draft.issueDate);
+  }, [servicePeriod]);
+
+  // Mỗi lần gõ là ghi xuống máy ngay, không chờ bấm nút
+  useEffect(() => {
+    if (restoredFor.current !== servicePeriod) return;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
+    saveDraft(servicePeriod, { issueDate, entries });
+    setDraftAt(
+      Object.keys(entries).length > 0 ? new Date().toISOString() : null,
+    );
+  }, [entries, issueDate, servicePeriod]);
+
+  useEffect(() => {
+    const sync = () => setOnline(navigator.onLine);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
 
   function entryOf(row: MeterRow): Entry {
     const custom = entries[row.roomId];
@@ -195,26 +246,38 @@ export function MetersGrid({
       let created = 0;
       let updated = 0;
       const failed: string[] = [];
+      const done = new Set<string>();
 
       for (const row of ready) {
         const draft = draftOf(row)!;
-        const res = await savePeriodicInvoice({
-          room_id: row.roomId,
-          contract_id: row.contract.id,
-          room_code: row.roomCode,
-          issue_date: issueDate,
-          utility_period: utilityPeriod,
-          service_period: servicePeriod,
-          elec_start: draft.elec_start,
-          elec_end: draft.elec_end,
-          water_start: draft.water_start,
-          water_end: draft.water_end,
-          items: draft.items,
-          note: null,
-        });
-        if (!res.ok) failed.push(`P.${row.roomCode}: ${res.error}`);
-        else if (res.data.created) created += 1;
-        else updated += 1;
+        try {
+          const res = await savePeriodicInvoice({
+            room_id: row.roomId,
+            contract_id: row.contract.id,
+            room_code: row.roomCode,
+            issue_date: issueDate,
+            utility_period: utilityPeriod,
+            service_period: servicePeriod,
+            elec_start: draft.elec_start,
+            elec_end: draft.elec_end,
+            water_start: draft.water_start,
+            water_end: draft.water_end,
+            items: draft.items,
+            note: null,
+          });
+
+          if (!res.ok) failed.push(`P.${row.roomCode}: ${res.error}`);
+          else {
+            done.add(row.roomId);
+            if (res.data.created) created += 1;
+            else updated += 1;
+          }
+        } catch {
+          // Mất mạng giữa chừng: Server Action ném lỗi mạng. Không để nó nổi
+          // lên transition — làm vậy React sẽ thay cả màn bằng trang lỗi và
+          // admin mất sạch số vừa đi đọc.
+          failed.push(`P.${row.roomCode}: mất kết nối`);
+        }
       }
 
       // FR-105: báo rõ đã tạo gì và bỏ qua phòng nào
@@ -222,15 +285,35 @@ export function MetersGrid({
       if (created) parts.push(`lập ${created} hóa đơn`);
       if (updated) parts.push(`cập nhật ${updated}`);
       if (parts.length) toast.success(`Đã ${parts.join(", ")}`);
+
       if (missing.length > 0)
         toast.warning(
           `Bỏ qua ${missing.length} phòng chưa nhập số: ${missing.map((r) => `P.${r.roomCode}`).join(", ")}`,
           { duration: 8000 },
         );
-      if (failed.length > 0) toast.error(failed.join(" · "), { duration: 8000 });
 
-      setEntries({});
-      setTouched({});
+      if (failed.length > 0)
+        toast.error(
+          `${failed.length} phòng chưa lập được. Số đã nhập vẫn giữ trên máy, có mạng lại bấm lập tiếp. ${failed.join(" · ")}`,
+          { duration: 12000 },
+        );
+
+      // Chỉ dọn những phòng đã lập xong; phòng lỗi giữ nguyên số để thử lại
+      if (done.size > 0) {
+        setEntries((prev) => {
+          const next = { ...prev };
+          for (const id of done) delete next[id];
+          return next;
+        });
+        setTouched((prev) => {
+          const next = { ...prev };
+          for (const id of done) delete next[id];
+          return next;
+        });
+      }
+      if (done.size === ready.length && missing.length === 0)
+        clearDraft(servicePeriod);
+
       router.refresh();
     });
   }
@@ -295,6 +378,23 @@ export function MetersGrid({
           </p>
         )}
       </div>
+
+      {/* Trấn an admin đang đi đọc công tơ: số đã nằm trên máy, mất mạng
+          hay tắt trình duyệt cũng không mất. */}
+      {!online ? (
+        <p className="bg-warning-soft text-warning mb-3 flex items-start gap-2 rounded-2xl px-4 py-3 text-xs font-medium">
+          <CloudOff className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>
+            Đang mất mạng. Cứ nhập tiếp — số được lưu ngay trên máy. Có mạng
+            lại thì bấm “Lập hóa đơn”.
+          </span>
+        </p>
+      ) : draftAt ? (
+        <p className="text-muted-foreground mb-3 flex items-center gap-1.5 px-1 text-[11px]">
+          <Save className="size-3.5 shrink-0" aria-hidden />
+          Đã lưu nháp trên máy lúc {new Date(draftAt).toLocaleTimeString("vi-VN")}
+        </p>
+      ) : null}
 
       {/* FR-102 — mỗi phòng một card, thứ tự giảm dần theo BR-M01 */}
       <ul className="space-y-2">

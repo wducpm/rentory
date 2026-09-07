@@ -11,8 +11,10 @@ import { currentBuildingSlug } from "@/lib/building";
 export default async function SettingsPage() {
   let ctx, rooms;
   try {
-    ctx = await getBuildingContext();
-    rooms = (await listRooms()).rooms;
+    // Hai lời gọi này độc lập nhau — chạy song song thay vì nối đuôi
+    const [c, r] = await Promise.all([getBuildingContext(), listRooms()]);
+    ctx = c;
+    rooms = r.rooms;
   } catch (e) {
     if (e instanceof NoBuildingError)
       return <NoBuilding slug={await currentBuildingSlug()} />;
