@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { NumberField } from "@/components/forms/number-field";
@@ -76,6 +77,7 @@ export function MoveOutForm({
     if (rollback) {
       toast.error(
         "Chỉ số cuối nhỏ hơn mốc. Sửa mốc thủ công ở màn Chỉ số trước (HD-11).",
+        { action: { label: "Mở Chỉ số", onClick: () => router.push("/meters") } },
       );
       return;
     }
@@ -138,9 +140,16 @@ export function MoveOutForm({
             onChange={setWater}
             hint={`Mốc ${room.current_water} · dùng ${consumption(room.current_water, water === "" ? room.current_water : Number(water))} khối`}
           />
+          {/* HD-09: trả phòng KHÔNG được chốt lùi. Khác với nhận phòng — ở đó
+              số bàn giao được phép nhỏ hơn mốc cũ (thay công tơ, đọc lại). */}
           {rollback ? (
             <p className="text-destructive col-span-2 text-[11px] font-medium">
-              Chỉ số cuối nhỏ hơn mốc — không lưu được (HD-09).
+              Chỉ số cuối nhỏ hơn mốc — không lưu được (HD-09). Kiểm tra công tơ
+              rồi{" "}
+              <Link href="/meters" className="underline underline-offset-2">
+                sửa mốc ở màn Chỉ số
+              </Link>{" "}
+              trước khi chốt.
             </p>
           ) : null}
         </div>
