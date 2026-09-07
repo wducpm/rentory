@@ -191,6 +191,7 @@ function groupOccupants(rows: OccupantRow[]): Map<string, ContractOccupant[]> {
       id: r.id,
       full_name: r.full_name,
       phone: r.phone,
+      national_id: r.national_id,
       is_primary: r.is_primary,
     });
     map.set(r.contract_id, list);

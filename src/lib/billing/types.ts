@@ -51,6 +51,8 @@ export type ContractOccupant = {
   id?: string;
   full_name: string;
   phone: string | null;
+  /** CCCD/CMND. Không bắt buộc — nhiều hợp đồng cũ chưa thu thập. */
+  national_id: string | null;
   is_primary: boolean;
 };
 

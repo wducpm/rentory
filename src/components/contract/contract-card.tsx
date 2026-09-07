@@ -90,17 +90,26 @@ export function ContractCard({ contract }: { contract: EditableContract }) {
           </p>
           <ul className="mt-2 grid gap-1.5">
             {contract.occupants.map((o, i) => (
-              <li key={o.id ?? i} className="flex items-center gap-2 text-xs">
+              <li key={o.id ?? i} className="flex items-start gap-2 text-xs">
                 {o.is_primary ? (
                   <Star
-                    className="text-primary size-3.5 shrink-0"
+                    className="text-primary mt-0.5 size-3.5 shrink-0"
                     aria-label="Người đại diện"
                   />
                 ) : (
-                  <span className="size-3.5 shrink-0" aria-hidden />
+                  <span className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                 )}
-                <span className="truncate font-medium">{o.full_name}</span>
-                <span className="text-muted-foreground ml-auto shrink-0 tabular">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">
+                    {o.full_name}
+                  </span>
+                  {o.national_id ? (
+                    <span className="text-muted-foreground tabular block text-[11px]">
+                      CCCD {o.national_id}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="text-muted-foreground tabular shrink-0">
                   {o.phone || "—"}
                 </span>
               </li>

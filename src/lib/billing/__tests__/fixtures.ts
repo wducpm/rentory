@@ -20,8 +20,13 @@ export const contract: Contract = {
 
 /** BR-P15: số người tính phí = số dòng, nên fixture 2 người = 2 dòng. */
 export const occupants: ContractOccupant[] = [
-  { full_name: "Hồ Thị Trang", phone: "0912345678", is_primary: true },
-  { full_name: "Nguyễn Văn B", phone: null, is_primary: false },
+  {
+    full_name: "Hồ Thị Trang",
+    phone: "0912345678",
+    national_id: "025306000478",
+    is_primary: true,
+  },
+  { full_name: "Nguyễn Văn B", phone: null, national_id: null, is_primary: false },
 ];
 
 export const room = (elec: number, water: number): Room => ({

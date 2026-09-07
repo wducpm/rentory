@@ -36,7 +36,9 @@ export function TextField({
       <input
         id={id}
         type={type}
-        inputMode={type === "tel" ? "tel" : undefined}
+        inputMode={
+          type === "tel" ? "tel" : id.includes("cccd") ? "numeric" : undefined
+        }
         placeholder={placeholder}
         required={required}
         value={value}

@@ -60,36 +60,36 @@ where not exists (
 -- ── Người ở ────────────────────────────────────────────────────────────────
 -- BR-P13: lưu danh sách đầy đủ, không chỉ số lượng. BR-P15: số người tính phí
 -- dịch vụ chung = số dòng ở đây. BR-P14: đúng một người đại diện mỗi hợp đồng.
-insert into contract_occupants (contract_id, full_name, phone, is_primary)
-select c.id, v.full_name, nullif(v.phone, ''), v.is_primary
+insert into contract_occupants (contract_id, full_name, phone, national_id, is_primary)
+select c.id, v.full_name, nullif(v.phone, ''), nullif(v.national_id, ''), v.is_primary
 from contracts c
 join rooms r on r.id = c.room_id
 join buildings b on b.id = r.building_id and b.slug = '190nguyentrai'
 join (values
-  ('201', 'Minh Hiệp',              '0976151815',  true),
-  ('202', 'Luyện Lăng Thu Thảo',    '0814272366',  true),
-  ('203', 'Đỗ Quốc Huy',            '09816661930', true),
-  ('203', 'Nguyễn Thu Phương',      '0986068317',  false),
-  ('301', 'Phạm Quỳnh Trang',       '0833560168',  true),
-  ('302', 'Nguyễn Tuyết Mai',       '0326710666',  true),
-  ('303', 'Vân Nam',                '0972162903',  true),
-  ('303', 'Đỗ Thị Kim Ngân',        '0389404983',  false),
-  ('401', 'Nguyễn Hà My',           '0348933191',  true),
-  ('401', 'Nguyễn Phương Anh',      '',            false),
-  ('402', 'Hoàng Linh',             '0865035992',  true),
-  ('402', 'Hồng Phương',            '',            false),
-  ('403', 'Vi Tú Vi',               '',            true),
-  ('502', 'Lê Thị Hà',              '0878560867',  true),
-  ('503', 'Hồ Thị Trang',           '0382409493',  true),
-  ('601', 'Hà Thu Trang',           '0868194994',  true),
-  ('602', 'Ngô Ngọc Quỳnh',         '0989277238',  true),
-  ('701', 'Đặng Đức Quyết',         '0914631325',  true),
-  ('701', 'Minh Hằng',              '0834726885',  false),
-  ('702', 'Lê Phan Khánh Linh',     '0915834118',  true),
-  ('703', 'Lê Phương Thảo',         '0976608159',  true),
-  ('703', 'Trà Vy',                 '',            false),
-  ('802', 'Đinh Thị Huyền',         '0399380905',  true)
-) as v(code, full_name, phone, is_primary) on v.code = r.code
+  ('201', 'Minh Hiệp',          '0976151815',  '',              true ),
+  ('202', 'Luyện Lăng Thu Thảo', '0814272366',  '',              true ),
+  ('203', 'Đỗ Quốc Huy',        '09816661930', '',              true ),
+  ('203', 'Nguyễn Thu Phương',  '0986068317',  '',              false),
+  ('301', 'Phạm Quỳnh Trang',   '0833560168',  '',              true ),
+  ('302', 'Nguyễn Tuyết Mai',   '0326710666',  '',              true ),
+  ('303', 'Vân Nam',            '0972162903',  '',              true ),
+  ('303', 'Đỗ Thị Kim Ngân',    '0389404983',  '',              false),
+  ('401', 'Nguyễn Hà My',       '0348933191',  '',              true ),
+  ('401', 'Nguyễn Phương Anh',  '',            '',              false),
+  ('402', 'Hoàng Linh',         '0865035992',  '',              true ),
+  ('402', 'Hồng Phương',        '',            '',              false),
+  ('403', 'Vi Tú Vi',           '',            '025306000478',  true ),
+  ('502', 'Lê Thị Hà',          '0878560867',  '',              true ),
+  ('503', 'Hồ Thị Trang',       '0382409493',  '',              true ),
+  ('601', 'Hà Thu Trang',       '0868194994',  '',              true ),
+  ('602', 'Ngô Ngọc Quỳnh',     '0989277238',  '',              true ),
+  ('701', 'Đặng Đức Quyết',     '0914631325',  '',              true ),
+  ('701', 'Minh Hằng',          '0834726885',  '',              false),
+  ('702', 'Lê Phan Khánh Linh', '0915834118',  '',              true ),
+  ('703', 'Lê Phương Thảo',     '0976608159',  '',              true ),
+  ('703', 'Trà Vy',             '',            '',              false),
+  ('802', 'Đinh Thị Huyền',     '0399380905',  '',              true )
+) as v(code, full_name, phone, national_id, is_primary) on v.code = r.code
 where c.active
   and not exists (
     select 1 from contract_occupants o

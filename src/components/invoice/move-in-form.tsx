@@ -109,6 +109,7 @@ export function MoveInForm({
         occupants: occupants.map((o) => ({
           full_name: o.full_name,
           phone: o.phone ?? "",
+          national_id: o.national_id ?? "",
           is_primary: o.is_primary,
         })),
         start_date: startDate,

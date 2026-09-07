@@ -37,6 +37,7 @@ const occupantsSchema = z
     z.object({
       full_name: z.string().trim().min(1, "Chưa nhập họ tên của một người ở"),
       phone: z.string().trim().default(""),
+      national_id: z.string().trim().default(""),
       is_primary: z.boolean().default(false),
     }),
   )

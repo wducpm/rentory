@@ -66,7 +66,7 @@ export function resizeOccupants(
   const next = occupants.slice(0, size);
   const grew = next.length < size;
   while (next.length < size)
-    next.push({ full_name: "", phone: "", is_primary: false });
+    next.push({ full_name: "", phone: "", national_id: "", is_primary: false });
 
   const hadPrimary = occupants.some((o) => o.is_primary);
   if (next.length > 0 && !next.some((o) => o.is_primary) && (!hadPrimary || grew))

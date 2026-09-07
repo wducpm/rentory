@@ -18,7 +18,8 @@ const person = (
   full_name: string,
   is_primary = false,
   phone: string | null = null,
-): ContractOccupant => ({ full_name, phone, is_primary });
+  national_id: string | null = null,
+): ContractOccupant => ({ full_name, phone, national_id, is_primary });
 
 describe("CR-02 · BR-P14 — người đại diện", () => {
   it("lấy đúng người được đánh dấu, không phải người đầu danh sách", () => {

@@ -15,6 +15,8 @@ import { resizeOccupants, type ContractOccupant } from "@/lib/billing";
  * BR-P16: giảm số người thì admin **chọn đích danh** người bị xóa, không tự
  *         cắt dòng cuối — cắt bừa sẽ xóa nhầm người còn ở lại.
  * BR-P17: họ tên bắt buộc mọi người; SĐT bắt buộc riêng người đại diện.
+ * CCCD không bắt buộc — nhiều hợp đồng cũ chưa thu thập — nhưng có ô riêng
+ * để không phải nhét vào ô tên như dữ liệu nhập tay trước đây.
  */
 export function OccupantsEditor({
   occupants,
@@ -191,13 +193,24 @@ export function OccupantsEditor({
               onChange={(v) => patch(i, { full_name: v })}
               required
             />
-            <TextField
-              id={`${idPrefix}-phone-${i}`}
-              type="tel"
-              label={o.is_primary ? "Điện thoại (bắt buộc)" : "Điện thoại"}
-              value={o.phone ?? ""}
-              onChange={(v) => patch(i, { phone: v })}
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <TextField
+                id={`${idPrefix}-phone-${i}`}
+                type="tel"
+                label={o.is_primary ? "Điện thoại *" : "Điện thoại"}
+                value={o.phone ?? ""}
+                onChange={(v) => patch(i, { phone: v })}
+              />
+              <TextField
+                id={`${idPrefix}-cccd-${i}`}
+                label="CCCD"
+                value={o.national_id ?? ""}
+                // Chỉ giữ chữ số: CCCD/CMND toàn số, dán từ nơi khác hay lẫn
+                // dấu cách hoặc gạch nối
+                onChange={(v) => patch(i, { national_id: v.replace(/\D/g, "") })}
+                placeholder="12 chữ số"
+              />
+            </div>
           </li>
         ))}
       </ul>
