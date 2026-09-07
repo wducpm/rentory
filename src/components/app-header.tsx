@@ -25,7 +25,7 @@ export function AppHeader({
           <Link
             href={backHref}
             aria-label="Quay lại"
-            className="bg-card border-border focus-visible:ring-ring inline-flex size-11 shrink-0 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none"
+            className="bg-card border-border focus-visible:ring-ring inline-flex size-10 shrink-0 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none"
           >
             <ChevronLeft className="size-5" aria-hidden />
           </Link>
@@ -39,7 +39,7 @@ export function AppHeader({
               {eyebrow}
             </p>
           ) : null}
-          <h1 className="font-display truncate text-xl leading-tight font-bold">
+          <h1 className="font-heading truncate text-xl leading-tight font-bold">
             {title}
           </h1>
         </div>

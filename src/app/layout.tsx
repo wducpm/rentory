@@ -1,17 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
+import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/query-provider";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-display",
+// DESIGN.md: Hanken Grotesk cho chữ đọc và điều hướng; JetBrains Mono cho
+// "mission-critical data" — mã phòng, số tiền, chỉ số công tơ. Chữ số đơn cách
+// giữ cột số thẳng hàng khi quét nhanh bảng dày dữ liệu.
+const hankenGrotesk = Hanken_Grotesk({
+  variable: "--font-sans",
   subsets: ["latin", "vietnamese"],
   display: "swap",
 });
 
-const manrope = Manrope({
-  variable: "--font-sans",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin", "vietnamese"],
   display: "swap",
 });
@@ -33,11 +36,12 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
-      className={`${spaceGrotesk.variable} ${manrope.variable} h-full antialiased`}
+      className={`${hankenGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="bg-background text-foreground min-h-full font-sans">
         <QueryProvider>{children}</QueryProvider>
-        <Toaster position="top-center" richColors />
+        {/* App không có theme toggle; không ghim sáng thì toast tự tối theo OS */}
+        <Toaster position="top-center" richColors theme="light" />
       </body>
     </html>
   );

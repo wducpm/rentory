@@ -7,11 +7,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Manrope cho body, Space Grotesk cho tiêu đề + số tiền (mục 3) */
+  /* DESIGN.md: Hanken Grotesk cho chữ đọc, JetBrains Mono cho số liệu */
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-display), var(--font-sans), ui-sans-serif, sans-serif;
-  --font-heading: var(--font-display), var(--font-sans), ui-sans-serif, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -42,6 +41,18 @@
   --color-info-soft: var(--info-soft);
   --color-destructive-soft: var(--destructive-soft);
   --color-neutral-soft: var(--neutral-soft);
+  --color-primary-strong: var(--primary-strong);
+  --color-success-strong: var(--success-strong);
+  --color-warning-strong: var(--warning-strong);
+  --color-destructive-strong: var(--destructive-strong);
+  --color-info-strong: var(--info-strong);
+  --color-neutral-strong: var(--neutral-strong);
+
+  /* Canvas #f8fafc và thẻ #ffffff gần như trùng màu — thiếu bóng thì thẻ dính
+     vào nền. DESIGN.md §Elevation Level 1. */
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  --shadow-sm:
+    0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.04);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -54,66 +65,80 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Giá trị tuyệt đối, không nhân từ --radius. Công thức cũ làm rounded-2xl
+     thành 28.8px trong khi mockup dùng thẻ bo 16px. */
+  --radius-sm: 0.375rem;   /*  6px */
+  --radius-md: 0.5rem;     /*  8px */
+  --radius-lg: 0.75rem;    /* 12px — nút, input */
+  --radius-xl: 0.75rem;    /* 12px — ô icon */
+  --radius-2xl: 1rem;      /* 16px — thẻ */
+  --radius-3xl: 1.5rem;    /* 24px — hero */
+  --radius-4xl: 2rem;
 }
 
 :root {
-  --background: oklch(0.976 0.006 285);       /* #F6F6FA nền xám ngả tím */
-  --foreground: oklch(0.22 0.02 275);          /* #16182B mực đậm ngả tím */
-  --card: oklch(1 0 0);
+  /* Bảng màu theo docs/ui/trang chu/code.html — trùng với phần văn xuôi của
+     DESIGN.md. Đây là palette Tailwind slate + indigo + emerald/amber/rose. */
+  --background: oklch(0.984 0.003 248);        /* #f8fafc */
+  --foreground: oklch(0.208 0.040 266);        /* #0f172a */
+  --card: oklch(1 0 0);                        /* #ffffff */
   --card-foreground: var(--foreground);
   --popover: oklch(1 0 0);
   --popover-foreground: var(--foreground);
 
-  /* Indigo — màu thương hiệu, lấy từ design tham chiếu */
-  --primary: oklch(0.513 0.226 277);
-  --primary-foreground: oklch(0.99 0 0);
+  --primary: oklch(0.511 0.230 277);           /* #4f46e5 */
+  --primary-foreground: oklch(1 0 0);
 
-  --secondary: oklch(0.968 0.008 280);
-  --secondary-foreground: oklch(0.35 0.03 278);
-  --muted: oklch(0.968 0.008 280);
-  --muted-foreground: oklch(0.56 0.02 278);      /* xám ngả tím cho text phụ */
-  --accent: oklch(0.958 0.018 277);
-  --accent-foreground: oklch(0.44 0.17 277);
+  --secondary: oklch(0.968 0.007 248);         /* #f1f5f9 */
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.968 0.007 248);
+  --muted-foreground: oklch(0.554 0.041 257);  /* #64748b */
+  --accent: oklch(0.962 0.018 272);            /* #eef2ff */
+  --accent-foreground: oklch(0.457 0.215 277); /* #4338ca */
 
-  --destructive: oklch(0.60 0.21 25);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.63 0.16 152);
-  --success-foreground: oklch(0.99 0 0);
-  --warning: oklch(0.72 0.16 68);
-  --warning-foreground: oklch(0.26 0.06 62);
-  --info: oklch(0.58 0.19 258);
-  --info-foreground: oklch(0.99 0 0);
+  --destructive: oklch(0.637 0.208 25);        /* #ef4444 */
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.696 0.149 163);           /* #10b981 */
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.769 0.165 70);            /* #f59e0b */
+  --warning-foreground: oklch(0.279 0.077 46); /* #92400e */
+  --info: oklch(0.546 0.215 263);              /* #2563eb */
+  --info-foreground: oklch(1 0 0);
 
-  /* Nền nhạt cho pill / ô icon */
-  --primary-soft: oklch(0.958 0.026 277);
-  --success-soft: oklch(0.955 0.045 155);
-  --warning-soft: oklch(0.958 0.055 85);
-  --info-soft: oklch(0.955 0.035 255);
-  --destructive-soft: oklch(0.955 0.035 22);
-  --neutral-soft: oklch(0.965 0.005 280);
+  /* Nền nhạt cho pill / ô icon — cặp *-50 của Tailwind */
+  --primary-soft: oklch(0.962 0.018 272);      /* #eef2ff */
+  --success-soft: oklch(0.979 0.021 166);      /* #ecfdf5 */
+  --warning-soft: oklch(0.987 0.021 95);       /* #fffbeb */
+  --info-soft: oklch(0.970 0.014 255);         /* #eff6ff */
+  --destructive-soft: oklch(0.971 0.013 17);   /* #fef2f2 */
+  --neutral-soft: oklch(0.968 0.007 248);      /* #f1f5f9 */
 
-  --border: oklch(0.935 0.008 285);
-  --input: oklch(0.925 0.008 285);
-  --ring: oklch(0.513 0.226 277);
+  /* Chữ trên nền *-soft. Dùng thẳng màu gốc chỉ đạt 2.1–3.4:1 nên không đọc
+     được; các giá trị dưới đây đều ≥ 4.8:1. */
+  --primary-strong: oklch(0.457 0.215 277);    /* #4338ca — 7.1:1 */
+  --success-strong: oklch(0.508 0.118 163);    /* #047857 — 5.2:1 */
+  --warning-strong: oklch(0.508 0.135 63);     /* #b45309 — 4.8:1 */
+  --destructive-strong: oklch(0.505 0.192 27); /* #b91c1c — 5.9:1 */
+  --info-strong: oklch(0.488 0.217 264);       /* #1d4ed8 — 6.2:1 */
+  --neutral-strong: oklch(0.446 0.037 257);    /* #475569 — 6.9:1 */
 
-  --radius: 1rem;                                 /* thẻ bo 16px như design */
+  --border: oklch(0.929 0.013 256);            /* #e2e8f0 */
+  --input: oklch(0.869 0.020 253);             /* #cbd5e1 */
+  --ring: oklch(0.511 0.230 277);
+
+  --radius: 1rem;                               /* thẻ bo 16px như mockup */
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: var(--foreground);
-  --sidebar-primary: oklch(0.513 0.226 277);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.958 0.026 277);
-  --sidebar-accent-foreground: oklch(0.44 0.17 277);
-  --sidebar-border: oklch(0.935 0.008 285);
-  --sidebar-ring: oklch(0.513 0.226 277);
+  --sidebar-primary: oklch(0.511 0.230 277);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.962 0.018 272);
+  --sidebar-accent-foreground: oklch(0.457 0.215 277);
+  --sidebar-border: oklch(0.929 0.013 256);
+  --sidebar-ring: oklch(0.511 0.230 277);
 }
 
+/* App chưa có nút đổi theme nên block này chưa chạy. Vẫn khai đủ token —
+   thiếu --success/--warning/--info và các *-soft thì bật dark là vỡ tone. */
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -146,6 +171,23 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  --primary: oklch(0.585 0.215 277);
+  --primary-foreground: oklch(1 0 0);
+  --success: oklch(0.696 0.149 163);
+  --success-foreground: oklch(0.145 0 0);
+  --warning: oklch(0.769 0.165 70);
+  --warning-foreground: oklch(0.145 0 0);
+  --info: oklch(0.606 0.205 263);
+  --info-foreground: oklch(1 0 0);
+  --destructive-foreground: oklch(1 0 0);
+
+  --primary-soft: oklch(0.28 0.06 277);
+  --success-soft: oklch(0.26 0.05 163);
+  --warning-soft: oklch(0.28 0.05 70);
+  --info-soft: oklch(0.27 0.06 263);
+  --destructive-soft: oklch(0.27 0.06 25);
+  --neutral-soft: oklch(0.24 0 0);
 }
 
 @layer base {
@@ -166,9 +208,10 @@
 }
 
 @layer utilities {
-  /* Số tiền: Space Grotesk + tabular để cột tiền thẳng hàng */
+  /* Số liệu — mã phòng, tiền, chỉ số công tơ. Mono + tabular-nums để cột số
+     thẳng hàng khi quét nhanh danh sách phòng (DESIGN.md §Typography). */
   .tabular {
-    font-family: var(--font-display);
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
   }

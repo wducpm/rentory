@@ -95,6 +95,8 @@ export type RoomSummary = {
   invoiceCount: number;
   dueCount: number;
   dueAmount: number;
+  /** Hóa đơn chưa thu cũ nhất — đích của nút Thu tiền trên thẻ phòng. */
+  dueInvoiceId: string | null;
 };
 
 /** S-02 — danh sách phòng: trạng thái, khách hiện tại, HĐ chưa thu, mốc hiện tại. */
@@ -133,7 +135,9 @@ export async function listRooms(): Promise<{
 
   const rooms: RoomSummary[] = (roomsRes.data ?? []).map((room) => {
     const mine = decorated.filter((i) => i.room_id === room.id);
-    const due = mine.filter((i) => i.status === "due");
+    const due = mine
+      .filter((i) => i.status === "due")
+      .sort((a, b) => (a.issue_date < b.issue_date ? -1 : 1));
     const contract = contracts.find((c) => c.room_id === room.id) ?? null;
     const occupants = contract
       ? (occupantsByContract.get(contract.id) ?? [])
@@ -148,6 +152,7 @@ export async function listRooms(): Promise<{
       invoiceCount: mine.length,
       dueCount: due.length,
       dueAmount: due.reduce((s, i) => s + (i.total - i.paid), 0),
+      dueInvoiceId: due[0]?.id ?? null,
     };
   });
 

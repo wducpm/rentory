@@ -58,7 +58,7 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle className="font-[family-name:var(--font-display)] text-2xl">
+        <CardTitle className="font-heading text-2xl">
           Rentory
         </CardTitle>
         <CardDescription>Đăng nhập để quản lý tòa nhà.</CardDescription>

@@ -4,17 +4,15 @@ import {
   ClipboardList,
   Gauge,
   LogOut,
-  MapPin,
   Receipt,
   Settings2,
 } from "lucide-react";
-import { AppHeader } from "@/components/app-header";
+import { HeroAction, HeroHeader } from "@/components/hero-header";
 import { NoBuilding } from "@/components/no-building";
 import {
   AlertRow,
   EmptyState,
   FeatureCard,
-  Pill,
   SectionHeader,
   StatCard,
 } from "@/components/ui-kit";
@@ -57,42 +55,19 @@ export default async function HomePage() {
 
   return (
     <>
-      <AppHeader
-        eyebrow="Quản lý toà nhà"
-        title="Trang chủ"
-        icon={<Building2 />}
+      <HeroHeader
+        buildingName={building.name}
+        address={building.address}
         actions={
           <form action="/auth/signout" method="post">
-            <button
-              type="submit"
-              aria-label="Đăng xuất"
-              className="bg-card border-border focus-visible:ring-ring inline-flex size-11 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none"
-            >
-              <LogOut className="size-4" aria-hidden />
-            </button>
+            <HeroAction label="Đăng xuất">
+              <LogOut className="size-4.5" aria-hidden />
+            </HeroAction>
           </form>
         }
       />
 
       <main className="mx-auto max-w-3xl space-y-5 px-4 pb-6 md:px-6">
-        {/* Tòa nhà hiện tại */}
-        <section className="bg-card border-border rounded-2xl border p-4">
-          <div className="flex items-start gap-2">
-            <h2 className="font-display text-base font-bold uppercase">
-              {building.name}
-            </h2>
-            <Pill tone="success" className="ml-auto">
-              Hoạt động
-            </Pill>
-          </div>
-          {building.address ? (
-            <p className="text-muted-foreground mt-1.5 flex items-center gap-1.5 text-xs">
-              <MapPin className="size-3.5 shrink-0" aria-hidden />
-              <span className="truncate">{building.address}</span>
-            </p>
-          ) : null}
-        </section>
-
         {/* Chỉ số tổng quan — không có doanh thu / lãi lỗ (ngoài phạm vi) */}
         <section className="grid grid-cols-2 gap-3">
           {/* Footer chỉ mang thông tin mà con số lớn chưa nói — không lặp lại nó */}
@@ -125,7 +100,7 @@ export default async function HomePage() {
           <FeatureCard
             href="/rooms"
             icon={<Building2 />}
-            tone="primary"
+            tone="info"
             badge="Sơ đồ"
             title="Quản lý phòng"
             subtitle={`${occupiedRooms} đang thuê · ${vacantRooms} trống`}
@@ -153,7 +128,7 @@ export default async function HomePage() {
           <FeatureCard
             href="/settings"
             icon={<Settings2 />}
-            tone="info"
+            tone="primary"
             title="Cài đặt toà"
             subtitle="Đơn giá & danh sách phòng"
           />

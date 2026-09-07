@@ -1,12 +1,15 @@
 import { cn } from "@/lib/utils";
-import { PILL_TONE, type Tone } from "./tone";
+import { DOT_TONE, PILL_TONE, type Tone } from "./tone";
 
 export function Pill({
   tone = "neutral",
+  dot = false,
   className,
   children,
 }: {
   tone?: Tone;
+  /** Chấm màu đứng trước nhãn — dùng cho pill trạng thái phòng. */
+  dot?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -18,6 +21,12 @@ export function Pill({
         className,
       )}
     >
+      {dot ? (
+        <span
+          aria-hidden
+          className={cn("size-1.5 shrink-0 rounded-full", DOT_TONE[tone])}
+        />
+      ) : null}
       {children}
     </span>
   );

@@ -17,7 +17,7 @@ export function SectionHeader({
         {title}
       </h2>
       {count !== undefined && count > 0 ? (
-        <span className="bg-destructive text-destructive-foreground inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
+        <span className="bg-destructive-soft text-destructive-strong inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
           {count}
         </span>
       ) : null}

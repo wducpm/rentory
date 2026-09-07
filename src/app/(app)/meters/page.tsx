@@ -1,5 +1,5 @@
 import { Gauge } from "lucide-react";
-import { AppHeader } from "@/components/app-header";
+import { HeroHeader } from "@/components/hero-header";
 import { NoBuilding } from "@/components/no-building";
 import { EmptyState } from "@/components/ui-kit";
 import { MetersGrid } from "@/components/meters/meters-grid";
@@ -22,11 +22,9 @@ export default async function MetersPage() {
 
   return (
     <>
-      <AppHeader
-        eyebrow={data.building.name}
-        title="Chỉ số công tơ"
-        icon={<Gauge />}
-        tone="warning"
+      <HeroHeader
+        buildingName={data.building.name}
+        address={data.building.address}
       />
 
       <main className="mx-auto max-w-3xl px-4 pb-6 md:px-6">

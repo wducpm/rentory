@@ -10,13 +10,8 @@ export default function Loading() {
     <div className="mx-auto max-w-3xl px-4 pb-6 md:px-6" aria-busy>
       <span className="sr-only">Đang tải…</span>
 
-      <div className="flex items-center gap-3 py-3">
-        <Skeleton className="size-11 rounded-xl" />
-        <div className="flex-1 space-y-1.5">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-5 w-40" />
-        </div>
-      </div>
+      {/* Cao bằng hero header để không nhảy layout khi nội dung tới */}
+      <Skeleton className="mt-3 mb-2 h-[92px] w-full rounded-3xl" />
 
       <div className="space-y-3">
         {[0, 1, 2, 3, 4].map((i) => (

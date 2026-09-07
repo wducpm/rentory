@@ -1,5 +1,4 @@
-import { Settings2 } from "lucide-react";
-import { AppHeader } from "@/components/app-header";
+import { HeroHeader } from "@/components/hero-header";
 import { NoBuilding } from "@/components/no-building";
 import { SectionHeader } from "@/components/ui-kit";
 import { PricesForm } from "@/components/settings/prices-form";
@@ -23,11 +22,9 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <AppHeader
-        eyebrow={ctx.building.name}
-        title="Cài đặt toà"
-        icon={<Settings2 />}
-        tone="info"
+      <HeroHeader
+        buildingName={ctx.building.name}
+        address={ctx.building.address}
       />
 
       <main className="mx-auto max-w-3xl space-y-6 px-4 pb-6 md:px-6">

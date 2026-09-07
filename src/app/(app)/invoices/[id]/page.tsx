@@ -30,7 +30,7 @@ export default async function InvoicePage({
           <Link
             href={`/invoices/${invoice.id}/print`}
             aria-label="Xem và tải hóa đơn"
-            className="bg-card border-border focus-visible:ring-ring inline-flex size-11 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none"
+            className="bg-card border-border focus-visible:ring-ring inline-flex size-10 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none"
           >
             <FileDown className="size-4" aria-hidden />
           </Link>

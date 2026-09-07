@@ -11,6 +11,7 @@ import {
 import { AppHeader } from "@/components/app-header";
 import { EmptyState, IconTile, Money, Pill, SectionHeader } from "@/components/ui-kit";
 import { ContractCard } from "@/components/contract/contract-card";
+import { MeterPair } from "@/components/rooms/meter-pair";
 import { getRoom } from "@/lib/data";
 import { displayInvoiceCode } from "@/lib/billing";
 import { dateLabel, INVOICE_TYPE_LABEL, periodsLine, ROOM_STATUS_LABEL } from "@/lib/labels";
@@ -39,7 +40,7 @@ export default async function RoomPage({
           <Link
             href={`/rooms/${room.id}/history`}
             aria-label="Lịch sử phòng"
-            className="bg-card border-border focus-visible:ring-ring inline-flex size-11 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none"
+            className="bg-card border-border focus-visible:ring-ring inline-flex size-10 items-center justify-center rounded-xl border focus-visible:ring-2 focus-visible:outline-none"
           >
             <History className="size-4" aria-hidden />
           </Link>
@@ -48,24 +49,12 @@ export default async function RoomPage({
 
       <main className="mx-auto max-w-3xl space-y-5 px-4 pb-6 md:px-6">
         {/* Mốc hiện tại — N1 */}
-        <section className="grid grid-cols-2 gap-3">
-          <div className="bg-card border-border rounded-2xl border p-4">
-            <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-              Mốc điện
-            </p>
-            <p className="tabular mt-1 text-3xl leading-none font-bold">
-              {room.current_elec}
-            </p>
-          </div>
-          <div className="bg-card border-border rounded-2xl border p-4">
-            <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-              Mốc nước
-            </p>
-            <p className="tabular mt-1 text-3xl leading-none font-bold">
-              {room.current_water}
-            </p>
-          </div>
-        </section>
+        <MeterPair
+          size="lg"
+          elec={room.current_elec}
+          water={room.current_water}
+          elecLabel={occupied ? "Mốc điện" : "Mốc bàn giao"}
+        />
 
         {/* Hợp đồng hiện tại */}
         <section>
