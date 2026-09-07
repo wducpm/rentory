@@ -12,6 +12,7 @@ export function NumberField({
   label,
   value,
   onChange,
+  onBlur,
   suffix,
   hint,
   min = 0,
@@ -23,6 +24,8 @@ export function NumberField({
   label?: string;
   value: number | "";
   onChange: (v: number | "") => void;
+  /** Gọi khi rời ô — dùng để chốt giá trị xuống nháp thay vì lưu từng phím gõ. */
+  onBlur?: () => void;
   suffix?: string;
   hint?: string;
   min?: number;
@@ -49,6 +52,7 @@ export function NumberField({
           onChange={(e) =>
             onChange(e.target.value === "" ? "" : Number(e.target.value))
           }
+          onBlur={onBlur}
           className={cn(
             "border-input bg-card focus-visible:ring-ring tabular h-11 w-full rounded-xl border px-3 text-sm font-semibold focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50",
             suffix && "pr-12",

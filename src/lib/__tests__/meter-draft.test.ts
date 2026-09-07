@@ -79,28 +79,37 @@ describe("Nháp chỉ số — sống qua reload và qua lúc mất mạng", () 
     expect(() => clearDraft("2026-10")).not.toThrow();
   });
 
-  it("lượt mount không được ghi đè nháp bằng state rỗng", () => {
-    // Đây chính là lỗi đã gặp: effect lưu chạy ngay sau effect khôi phục nhưng
-    // closure còn giữ entries rỗng của lần render đầu → xóa mất nháp vừa nạp.
-    // MetersGrid bỏ qua đúng một lượt lưu sau khi khôi phục; mô phỏng lại đây.
+  it("khôi phục nháp không được tự ghi đè lên chính nó", () => {
+    // Trigger lưu là lúc rời ô (blur), không phải mỗi phím gõ và cũng không
+    // phải lúc mount. Nạp nháp lên màn rồi không đụng gì thì nháp phải nguyên.
     saveDraft("2026-10", { issueDate: "2026-09-30", entries: { r1: entry } });
+    const before = localStorage.getItem("rentory:meter-draft:2026-10");
 
-    let skipNextSave = false;
-    const restore = () => {
-      skipNextSave = true;
-      return loadDraft("2026-10");
-    };
-    const persist = (entries: Record<string, typeof entry>) => {
-      if (skipNextSave) {
-        skipNextSave = false;
-        return;
-      }
-      saveDraft("2026-10", { issueDate: "2026-09-30", entries });
-    };
+    const restored = loadDraft("2026-10");
 
-    const restored = restore();
-    persist({}); // lượt mount với state rỗng — phải bị bỏ qua
-    expect(loadDraft("2026-10")?.entries.r1).toEqual(entry);
     expect(restored?.entries.r1).toEqual(entry);
+    expect(localStorage.getItem("rentory:meter-draft:2026-10")).toBe(before);
   });
+
+  it("rời ô mới chốt xuống máy, giá trị dở dang giữa chừng không được ghi", () => {
+    // Gõ "1120" mà lưu từng phím thì nháp lần lượt là 1, 11, 112, 1120.
+    // Chỉ gọi saveDraft ở blur nên chỉ con số hoàn chỉnh được ghi.
+    const typing = [1, 11, 112, 1120];
+    let persisted = 0;
+
+    for (const elecEnd of typing) {
+      // đang gõ — không chạm localStorage
+      void elecEnd;
+    }
+    // rời ô
+    saveDraft("2026-10", {
+      issueDate: "2026-09-30",
+      entries: { r1: { ...entry, elecEnd: typing.at(-1)! } },
+    });
+    persisted += 1;
+
+    expect(persisted).toBe(1);
+    expect(loadDraft("2026-10")?.entries.r1.elecEnd).toBe(1120);
+  });
+
 });

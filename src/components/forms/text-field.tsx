@@ -8,6 +8,7 @@ export function TextField({
   label,
   value,
   onChange,
+  onBlur,
   type = "text",
   placeholder,
   hint,
@@ -18,6 +19,7 @@ export function TextField({
   label?: string;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   type?: "text" | "tel" | "date";
   placeholder?: string;
   hint?: string;
@@ -39,6 +41,7 @@ export function TextField({
         required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         className="border-input bg-card focus-visible:ring-ring h-11 w-full rounded-xl border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
       />
       {hint ? <p className="text-muted-foreground text-[11px]">{hint}</p> : null}

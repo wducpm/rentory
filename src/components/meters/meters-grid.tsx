@@ -99,35 +99,37 @@ export function MetersGrid({
 
   // Khôi phục nháp của đúng kỳ dịch vụ đang chọn. Đổi kỳ thì nạp nháp của kỳ đó.
   const restoredFor = useRef<string | null>(null);
-  const skipNextSave = useRef(false);
+  // Bản sao đồng bộ của `entries` để handler blur luôn đọc được giá trị mới
+  // nhất, không phụ thuộc closure của lần render nào.
+  const entriesRef = useRef<Record<string, Entry>>({});
 
   useEffect(() => {
     if (restoredFor.current === servicePeriod) return;
     restoredFor.current = servicePeriod;
-    // Effect lưu bên dưới cũng chạy ngay trong lượt mount này, nhưng closure
-    // của nó còn giữ `entries` rỗng của lần render đầu — để nó chạy là xóa
-    // mất nháp vừa nạp. Bỏ qua đúng một lượt.
-    skipNextSave.current = true;
 
     const draft = loadDraft(servicePeriod);
-    setEntries(draft?.entries ?? {});
+    entriesRef.current = draft?.entries ?? {};
+    setEntries(entriesRef.current);
     setTouched({});
     setDraftAt(draft?.savedAt ?? null);
     if (draft?.issueDate) setIssueDate(draft.issueDate);
   }, [servicePeriod]);
 
-  // Mỗi lần gõ là ghi xuống máy ngay, không chờ bấm nút
-  useEffect(() => {
+  /**
+   * Chốt nháp xuống máy khi admin **rời ô** — chạm ra ngoài, chuyển sang ô
+   * khác, hay bấm nút. Lưu theo từng phím gõ thì ghi cả những con số dở dang
+   * (gõ "1120" sẽ ghi 1, 11, 112, 1120) và dòng "đã lưu lúc…" nhấp nháy liên
+   * tục nên mất ý nghĩa.
+   */
+  function persistDraft() {
     if (restoredFor.current !== servicePeriod) return;
-    if (skipNextSave.current) {
-      skipNextSave.current = false;
-      return;
-    }
-    saveDraft(servicePeriod, { issueDate, entries });
+    saveDraft(servicePeriod, { issueDate, entries: entriesRef.current });
     setDraftAt(
-      Object.keys(entries).length > 0 ? new Date().toISOString() : null,
+      Object.keys(entriesRef.current).length > 0
+        ? new Date().toISOString()
+        : null,
     );
-  }, [entries, issueDate, servicePeriod]);
+  }
 
   useEffect(() => {
     const sync = () => setOnline(navigator.onLine);
@@ -163,7 +165,8 @@ export function MetersGrid({
 
   function update(row: MeterRow, patch: Partial<Entry>) {
     const next = { ...entryOf(row), ...patch };
-    setEntries((prev) => ({ ...prev, [row.roomId]: next }));
+    entriesRef.current = { ...entriesRef.current, [row.roomId]: next };
+    setEntries(entriesRef.current);
     setTouched((prev) => ({ ...prev, [row.roomId]: true }));
   }
 
@@ -225,6 +228,8 @@ export function MetersGrid({
   }
 
   function submit() {
+    persistDraft();
+
     if (invalid.length > 0) {
       toast.error(
         `Phòng ${invalid.map((r) => r.roomCode).join(", ")}: chỉ số cuối nhỏ hơn đầu kỳ (BR-M03).`,
@@ -300,11 +305,10 @@ export function MetersGrid({
 
       // Chỉ dọn những phòng đã lập xong; phòng lỗi giữ nguyên số để thử lại
       if (done.size > 0) {
-        setEntries((prev) => {
-          const next = { ...prev };
-          for (const id of done) delete next[id];
-          return next;
-        });
+        const next = { ...entriesRef.current };
+        for (const id of done) delete next[id];
+        entriesRef.current = next;
+        setEntries(next);
         setTouched((prev) => {
           const next = { ...prev };
           for (const id of done) delete next[id];
@@ -331,6 +335,7 @@ export function MetersGrid({
             setIssueDate(v);
             setPeriodOverride(null);
           }}
+          onBlur={persistDraft}
         />
 
         {editingPeriods ? (
@@ -441,6 +446,7 @@ export function MetersGrid({
                   end={e.elecEnd}
                   onStart={(v) => update(row, { elecStart: v })}
                   onEnd={(v) => update(row, { elecEnd: v })}
+                  onBlur={persistDraft}
                   amount={draft?.items.find((i) => i.fee === "elec")?.amount}
                   invalid={elecBack}
                 />
@@ -453,6 +459,7 @@ export function MetersGrid({
                   end={e.waterEnd}
                   onStart={(v) => update(row, { waterStart: v })}
                   onEnd={(v) => update(row, { waterEnd: v })}
+                  onBlur={persistDraft}
                   amount={draft?.items.find((i) => i.fee === "water")?.amount}
                   invalid={waterBack}
                 />
@@ -563,6 +570,7 @@ function MeterPair({
   end,
   onStart,
   onEnd,
+  onBlur,
   amount,
   invalid,
 }: {
@@ -574,6 +582,7 @@ function MeterPair({
   end: number | "";
   onStart: (v: number | "") => void;
   onEnd: (v: number | "") => void;
+  onBlur: () => void;
   amount?: number;
   invalid: boolean;
 }) {
@@ -594,6 +603,7 @@ function MeterPair({
           label="Đầu kỳ"
           value={start}
           onChange={onStart}
+          onBlur={onBlur}
           className="[&_input]:border-dashed [&_input]:bg-muted/40"
         />
         <NumberField
@@ -601,6 +611,7 @@ function MeterPair({
           label="Cuối kỳ"
           value={end}
           onChange={onEnd}
+          onBlur={onBlur}
           className={cn(invalid && "[&_input]:border-destructive")}
         />
       </div>
