@@ -1,13 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowRightLeft,
-  ChevronRight,
-  History,
-  LogIn,
-  LogOut,
-  Receipt,
-} from "lucide-react";
+import { ChevronRight, History, LogIn, LogOut, Receipt } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { EmptyState, IconTile, Money, Pill, SectionHeader } from "@/components/ui-kit";
 import { ContractCard } from "@/components/contract/contract-card";
@@ -81,38 +74,24 @@ export default async function RoomPage({
           )}
         </section>
 
-        {/* CTA */}
-        <section className="grid grid-cols-2 gap-3">
+        {/* CTA — không có lối vào ghi chỉ số ở đây. Chỉ số chỉ nhập tại màn
+            này khi đang làm thủ tục nhận/trả phòng; ghi chỉ số cuối kỳ là việc
+            của S-06 (tab Chỉ số), làm cả tòa một lượt. */}
+        <section>
           {occupied ? (
-            <>
-              <ActionLink
-                href={`/rooms/${room.id}/move-out`}
-                icon={<LogOut />}
-                tone="warning"
-                label="Trả phòng"
-              />
-              <ActionLink
-                href="/meters"
-                icon={<ArrowRightLeft />}
-                tone="primary"
-                label="Ghi chỉ số"
-              />
-            </>
+            <ActionLink
+              href={`/rooms/${room.id}/move-out`}
+              icon={<LogOut />}
+              tone="warning"
+              label="Trả phòng"
+            />
           ) : (
-            <>
-              <ActionLink
-                href={`/rooms/${room.id}/move-in`}
-                icon={<LogIn />}
-                tone="success"
-                label="Nhận phòng"
-              />
-              <ActionLink
-                href="/meters"
-                icon={<ArrowRightLeft />}
-                tone="primary"
-                label="Sửa mốc"
-              />
-            </>
+            <ActionLink
+              href={`/rooms/${room.id}/move-in`}
+              icon={<LogIn />}
+              tone="success"
+              label="Nhận phòng"
+            />
           )}
         </section>
 
